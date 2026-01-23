@@ -51,3 +51,9 @@ html, body, #root {
 .selection {
   background-color: #3a5d8c;
 }
+
+.selection-line-end {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+}

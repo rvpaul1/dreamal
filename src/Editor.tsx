@@ -291,14 +291,19 @@ function Editor() {
     const cursorAtStart = isCursorLine && cursor.col === selStart && posBefore(cursor, selectionAnchor!);
     const cursorAtEnd = isCursorLine && cursor.col === selEnd && posBefore(selectionAnchor!, cursor);
 
+    const showLineEndSelection = lineIndex !== end.line;
+
     return (
       <>
         <span>{beforeSel}</span>
         {cursorAtStart && <span className={`cursor ${cursorVisible ? "visible" : ""}`} />}
-        <span className="selection">{selected || (lineIndex !== end.line ? "\n" : "")}</span>
+        <span className="selection">
+          {selected}
+          {showLineEndSelection && <span className="selection-line-end" />}
+        </span>
         {cursorAtEnd && <span className={`cursor ${cursorVisible ? "visible" : ""}`} />}
         <span>{afterSel}</span>
-        {!cursorAtStart && !cursorAtEnd && lineText.length === 0 && <span>{"\u200B"}</span>}
+        {lineText.length === 0 && !showLineEndSelection && <span>{"\u200B"}</span>}
       </>
     );
   };
