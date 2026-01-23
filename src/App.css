@@ -1,0 +1,53 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.editor {
+  width: 100%;
+  height: 100%;
+  padding: 40px;
+  outline: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  cursor: text;
+}
+
+.editor-content {
+  min-height: 100%;
+}
+
+.editor-line {
+  min-height: 27px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  tab-size: 4;
+}
+
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background-color: #e0e0e0;
+  vertical-align: text-bottom;
+  opacity: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+}
+
+.cursor.visible {
+  opacity: 1;
+}
+
+.selection {
+  background-color: #3a5d8c;
+}
