@@ -14,23 +14,11 @@ import {
   createInitialState,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
-import { expandMacro } from "./macros";
+import { type Macro } from "./macros";
 
 export { posEqual, posBefore, getSelectionBounds } from "./editorActions";
 export type { CursorPosition, EditorState } from "./editorActions";
 export type { Document, DocumentMetadata } from "./documentModel";
-
-function tryExpandMacro(state: EditorState): EditorState {
-  const result = expandMacro(state.lines, state.cursor.line, state.cursor.col);
-  if (result) {
-    return {
-      ...state,
-      lines: result.lines,
-      cursor: { line: state.cursor.line, col: result.newCol },
-    };
-  }
-  return state;
-}
 
 export function useEditorState() {
   const [document, setDocument] = useState<Document>(() =>
@@ -84,37 +72,16 @@ export function useEditorState() {
           break;
         case "Tab":
           e.preventDefault();
-          updateEditor((s) => {
-            const expanded = tryExpandMacro(s);
-            if (expanded !== s) {
-              return expanded;
-            }
-            return insertTab(s);
-          });
+          updateEditor(insertTab);
           break;
         case "Enter":
           e.preventDefault();
-          updateEditor((s) => {
-            const expanded = tryExpandMacro(s);
-            if (expanded !== s) {
-              return expanded;
-            }
-            return insertNewline(s);
-          });
+          updateEditor(insertNewline);
           break;
         case "Shift":
           break;
         default:
-          if (e.key === " ") {
-            e.preventDefault();
-            updateEditor((s) => {
-              const expanded = tryExpandMacro(s);
-              if (expanded !== s) {
-                return insertCharacter(expanded, " ");
-              }
-              return insertCharacter(s, " ");
-            });
-          } else if (e.key.length === 1) {
+          if (e.key.length === 1) {
             e.preventDefault();
             updateEditor((s) => insertCharacter(s, e.key));
           }
@@ -128,6 +95,29 @@ export function useEditorState() {
     setDocument(doc);
   }, []);
 
+  const applyMacro = useCallback(
+    (macro: Macro, inputLength: number) => {
+      updateEditor((state) => {
+        const { line, col } = state.cursor;
+        const currentLine = state.lines[line];
+        const expanded = macro.expand();
+
+        const beforeMacro = currentLine.slice(0, col - inputLength);
+        const afterCursor = currentLine.slice(col);
+
+        const newLines = [...state.lines];
+        newLines[line] = beforeMacro + expanded + afterCursor;
+
+        return {
+          ...state,
+          lines: newLines,
+          cursor: { line, col: beforeMacro.length + expanded.length },
+        };
+      });
+    },
+    [updateEditor]
+  );
+
   return {
     document,
     lines: document.editor.lines,
@@ -136,5 +126,6 @@ export function useEditorState() {
     hasSelection,
     handleKeyDown,
     updateDocument,
+    applyMacro,
   };
 }

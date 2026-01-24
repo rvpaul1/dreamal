@@ -12,6 +12,7 @@ html, body, #root {
 }
 
 .editor {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 40px;
@@ -56,4 +57,40 @@ html, body, #root {
   display: inline-block;
   width: 0.5em;
   height: 1em;
+}
+
+.macro-autocomplete {
+  background-color: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.macro-autocomplete-item {
+  padding: 0px 6px;
+  cursor: pointer;
+}
+
+.macro-autocomplete-item:hover {
+  background-color: #3a3a3a;
+}
+
+.macro-autocomplete-item.selected {
+  background-color: #3a5d8c;
+}
+
+.macro-trigger {
+  font-family: monospace;
+  color: #e0e0e0;
+}
+
+.save-error {
+  background-color: #8c3a3a;
+  color: #fff;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
 }

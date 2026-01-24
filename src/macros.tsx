@@ -18,33 +18,33 @@ export const macros: Macro[] = [
   },
 ];
 
-export function findMacro(text: string): Macro | undefined {
-  return macros.find((m) => text.endsWith(m.trigger));
-}
-
-export function expandMacro(
+export function getCurrentMacroInput(
   lines: string[],
   cursorLine: number,
   cursorCol: number
-): { lines: string[]; newCol: number } | null {
+): string | null {
   const line = lines[cursorLine];
   const textBeforeCursor = line.slice(0, cursorCol);
 
-  for (const macro of macros) {
-    if (textBeforeCursor.endsWith(macro.trigger)) {
-      const expanded = macro.expand();
-      const beforeMacro = textBeforeCursor.slice(0, -macro.trigger.length);
-      const afterCursor = line.slice(cursorCol);
-
-      const newLines = [...lines];
-      newLines[cursorLine] = beforeMacro + expanded + afterCursor;
-
-      return {
-        lines: newLines,
-        newCol: beforeMacro.length + expanded.length,
-      };
-    }
+  const slashIndex = textBeforeCursor.lastIndexOf("/");
+  if (slashIndex === -1) {
+    return null;
   }
 
-  return null;
+  const candidate = textBeforeCursor.slice(slashIndex);
+  if (candidate.includes(" ")) {
+    return null;
+  }
+
+  return candidate;
+}
+
+export function getMatchingMacros(input: string, limit: number = 10): Macro[] {
+  if (!input.startsWith("/")) {
+    return [];
+  }
+
+  return macros
+    .filter((m) => m.trigger.startsWith(input))
+    .slice(0, limit);
 }

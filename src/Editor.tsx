@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   useEditorState,
@@ -7,6 +7,8 @@ import {
 } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
+import { MacroAutocomplete } from "./MacroAutocomplete";
+import { getCurrentMacroInput, getMatchingMacros, type Macro } from "./macros";
 import type { Document } from "./documentModel";
 
 function Editor() {
@@ -18,6 +20,7 @@ function Editor() {
     hasSelection,
     handleKeyDown: handleEditorKeyDown,
     updateDocument,
+    applyMacro,
   } = useEditorState();
 
   const { saveState, flushSave, journalDir } = usePersistence(document, updateDocument);
@@ -37,7 +40,25 @@ function Editor() {
   );
 
   const [cursorVisible, setCursorVisible] = useState(true);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const macroInput = useMemo(
+    () => getCurrentMacroInput(lines, cursor.line, cursor.col),
+    [lines, cursor.line, cursor.col]
+  );
+
+  const matchingMacros = useMemo(
+    () => (macroInput ? getMatchingMacros(macroInput, 10) : []),
+    [macroInput]
+  );
+
+  const showAutocomplete = matchingMacros.length > 0;
+
+  useEffect(() => {
+    setAutocompleteIndex(0);
+  }, [macroInput]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,6 +85,15 @@ function Editor() {
     };
   }, [flushSave]);
 
+  const selectMacro = useCallback(
+    (macro: Macro) => {
+      if (macroInput) {
+        applyMacro(macro, macroInput.length);
+      }
+    },
+    [applyMacro, macroInput]
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.metaKey && e.shiftKey && e.key === "[") {
@@ -82,10 +112,63 @@ function Editor() {
         return;
       }
 
+      if (showAutocomplete) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setAutocompleteIndex((i) =>
+            i < matchingMacros.length - 1 ? i + 1 : i
+          );
+          return;
+        }
+
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setAutocompleteIndex((i) => (i > 0 ? i - 1 : i));
+          return;
+        }
+
+        if (e.key === "Tab" || e.key === "Enter") {
+          e.preventDefault();
+          selectMacro(matchingMacros[autocompleteIndex]);
+          return;
+        }
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setAutocompleteIndex(0);
+          return;
+        }
+      }
+
       handleEditorKeyDown(e);
     },
-    [handleEditorKeyDown, navigatePrev, navigateNext, hasPrev, hasNext]
+    [
+      handleEditorKeyDown,
+      navigatePrev,
+      navigateNext,
+      hasPrev,
+      hasNext,
+      showAutocomplete,
+      matchingMacros,
+      autocompleteIndex,
+      selectMacro,
+    ]
   );
+
+  const getAutocompletePosition = useCallback(() => {
+    const lineEl = lineRefs.current.get(cursor.line);
+    if (!lineEl || !editorRef.current) {
+      return { top: 0, left: 0 };
+    }
+
+    const lineRect = lineEl.getBoundingClientRect();
+    const editorRect = editorRef.current.getBoundingClientRect();
+
+    return {
+      top: lineRect.bottom - editorRect.top,
+      left: lineRect.left - editorRect.left,
+    };
+  }, [cursor.line]);
 
   const renderLine = (lineText: string, lineIndex: number) => {
     const isCursorLine = lineIndex === cursor.line;
@@ -156,11 +239,28 @@ function Editor() {
       )}
       <div className="editor-content">
         {lines.map((lineText, lineIndex) => (
-          <div key={lineIndex} className="editor-line">
+          <div
+            key={lineIndex}
+            className="editor-line"
+            ref={(el) => {
+              if (el) {
+                lineRefs.current.set(lineIndex, el);
+              } else {
+                lineRefs.current.delete(lineIndex);
+              }
+            }}
+          >
             {renderLine(lineText, lineIndex)}
           </div>
         ))}
       </div>
+      {showAutocomplete && (
+        <MacroAutocomplete
+          macros={matchingMacros}
+          selectedIndex={autocompleteIndex}
+          position={getAutocompletePosition()}
+        />
+      )}
     </div>
   );
 }
