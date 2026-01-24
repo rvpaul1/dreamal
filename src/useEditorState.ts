@@ -14,10 +14,23 @@ import {
   createInitialState,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
+import { expandMacro } from "./macros";
 
 export { posEqual, posBefore, getSelectionBounds } from "./editorActions";
 export type { CursorPosition, EditorState } from "./editorActions";
 export type { Document, DocumentMetadata } from "./documentModel";
+
+function tryExpandMacro(state: EditorState): EditorState {
+  const result = expandMacro(state.lines, state.cursor.line, state.cursor.col);
+  if (result) {
+    return {
+      ...state,
+      lines: result.lines,
+      cursor: { line: state.cursor.line, col: result.newCol },
+    };
+  }
+  return state;
+}
 
 export function useEditorState() {
   const [document, setDocument] = useState<Document>(() =>
@@ -71,16 +84,37 @@ export function useEditorState() {
           break;
         case "Tab":
           e.preventDefault();
-          updateEditor(insertTab);
+          updateEditor((s) => {
+            const expanded = tryExpandMacro(s);
+            if (expanded !== s) {
+              return expanded;
+            }
+            return insertTab(s);
+          });
           break;
         case "Enter":
           e.preventDefault();
-          updateEditor(insertNewline);
+          updateEditor((s) => {
+            const expanded = tryExpandMacro(s);
+            if (expanded !== s) {
+              return expanded;
+            }
+            return insertNewline(s);
+          });
           break;
         case "Shift":
           break;
         default:
-          if (e.key.length === 1) {
+          if (e.key === " ") {
+            e.preventDefault();
+            updateEditor((s) => {
+              const expanded = tryExpandMacro(s);
+              if (expanded !== s) {
+                return insertCharacter(expanded, " ");
+              }
+              return insertCharacter(s, " ");
+            });
+          } else if (e.key.length === 1) {
             e.preventDefault();
             updateEditor((s) => insertCharacter(s, e.key));
           }
