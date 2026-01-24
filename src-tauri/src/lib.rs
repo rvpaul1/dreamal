@@ -82,6 +82,68 @@ fn ensure_journal_dir() -> Result<String, String> {
         .ok_or("Invalid path encoding".to_string())
 }
 
+#[tauri::command]
+fn list_entries() -> Result<Vec<String>, String> {
+    let journal_dir = get_default_journal_dir()?;
+
+    if !journal_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut entries: Vec<String> = Vec::new();
+
+    let years = fs::read_dir(&journal_dir).map_err(|e| format!("Failed to read journal: {}", e))?;
+
+    for year_entry in years.flatten() {
+        let year_path = year_entry.path();
+        if !year_path.is_dir() {
+            continue;
+        }
+
+        let months = match fs::read_dir(&year_path) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+
+        for month_entry in months.flatten() {
+            let month_path = month_entry.path();
+            if !month_path.is_dir() {
+                continue;
+            }
+
+            let files = match fs::read_dir(&month_path) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+
+            for file_entry in files.flatten() {
+                let file_path = file_entry.path();
+                if file_path.extension().is_some_and(|ext| ext == "md") {
+                    if let Some(path_str) = file_path.to_str() {
+                        entries.push(path_str.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    entries.sort();
+    Ok(entries)
+}
+
+#[tauri::command]
+fn read_entry(filepath: String) -> Result<String, String> {
+    fs::read_to_string(&filepath).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!("Entry not found: {}", filepath)
+        } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+            format!("Permission denied: cannot read {}", filepath)
+        } else {
+            format!("Failed to read entry: {}", e)
+        }
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -89,7 +151,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_journal_path,
             write_entry,
-            ensure_journal_dir
+            ensure_journal_dir,
+            list_entries,
+            read_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

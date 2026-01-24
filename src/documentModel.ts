@@ -72,3 +72,73 @@ export function getFilePath(journalDir: string, created: Date): string {
   const filename = `${year}-${month}-${day}-${hours}${minutes}${seconds}.md`;
   return `${journalDir}/${year}/${month}/${filename}`;
 }
+
+export function parseFromMDX(content: string, filepath: string): Document {
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n\n?([\s\S]*)$/);
+
+  if (!frontmatterMatch) {
+    const created = parseDateFromFilepath(filepath);
+    return {
+      metadata: {
+        id: generateId(),
+        created,
+        modified: created,
+      },
+      editor: {
+        lines: content.split("\n"),
+        cursor: { line: 0, col: 0 },
+        selectionAnchor: null,
+      },
+    };
+  }
+
+  const [, frontmatterStr, body] = frontmatterMatch;
+  const metadata = parseFrontmatter(frontmatterStr, filepath);
+
+  return {
+    metadata,
+    editor: {
+      lines: body.split("\n"),
+      cursor: { line: 0, col: 0 },
+      selectionAnchor: null,
+    },
+  };
+}
+
+function parseFrontmatter(frontmatter: string, filepath: string): DocumentMetadata {
+  const lines = frontmatter.split("\n");
+  const data: Record<string, string> = {};
+
+  for (const line of lines) {
+    const colonIndex = line.indexOf(":");
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      const value = line.slice(colonIndex + 1).trim();
+      data[key] = value;
+    }
+  }
+
+  const fallbackDate = parseDateFromFilepath(filepath);
+
+  return {
+    id: data.id || generateId(),
+    created: data.created ? new Date(data.created) : fallbackDate,
+    modified: data.modified ? new Date(data.modified) : fallbackDate,
+  };
+}
+
+function parseDateFromFilepath(filepath: string): Date {
+  const match = filepath.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})\.md$/);
+  if (match) {
+    const [, year, month, day, hours, minutes, seconds] = match;
+    return new Date(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+  }
+  return new Date();
+}

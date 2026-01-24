@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   useEditorState,
@@ -6,6 +6,8 @@ import {
   posBefore,
 } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
+import { useEntryNavigation } from "./useEntryNavigation";
+import type { Document } from "./documentModel";
 
 function Editor() {
   const {
@@ -14,11 +16,25 @@ function Editor() {
     cursor,
     selectionAnchor,
     hasSelection,
-    handleKeyDown,
+    handleKeyDown: handleEditorKeyDown,
     updateDocument,
   } = useEditorState();
 
-  const { saveState, flushSave } = usePersistence(document, updateDocument);
+  const { saveState, flushSave, journalDir } = usePersistence(document, updateDocument);
+
+  const handleLoadEntry = useCallback(
+    (doc: Document, _filepath: string) => {
+      updateDocument(doc);
+    },
+    [updateDocument]
+  );
+
+  const { navigatePrev, navigateNext, hasPrev, hasNext } = useEntryNavigation(
+    document,
+    journalDir,
+    handleLoadEntry,
+    flushSave
+  );
 
   const [cursorVisible, setCursorVisible] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -47,6 +63,29 @@ function Editor() {
       unlisten.then((fn) => fn());
     };
   }, [flushSave]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && e.key === "[") {
+        e.preventDefault();
+        if (hasPrev) {
+          navigatePrev();
+        }
+        return;
+      }
+
+      if (e.metaKey && e.shiftKey && e.key === "]") {
+        e.preventDefault();
+        if (hasNext) {
+          navigateNext();
+        }
+        return;
+      }
+
+      handleEditorKeyDown(e);
+    },
+    [handleEditorKeyDown, navigatePrev, navigateNext, hasPrev, hasNext]
+  );
 
   const renderLine = (lineText: string, lineIndex: number) => {
     const isCursorLine = lineIndex === cursor.line;
