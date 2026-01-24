@@ -41,7 +41,7 @@ export function useEditorState() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.metaKey && !e.shiftKey && !e.altKey) {
+      if (e.altKey && !e.shiftKey && !e.metaKey) {
         if (e.key === "ArrowUp") {
           e.preventDefault();
           updateEditor(swapLineUp);
@@ -55,7 +55,7 @@ export function useEditorState() {
         return;
       }
 
-      if (e.ctrlKey || e.altKey) {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
         return;
       }
 
