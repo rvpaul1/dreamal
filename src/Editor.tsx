@@ -1,12 +1,25 @@
 import { useState, useEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   useEditorState,
   getSelectionBounds,
   posBefore,
 } from "./useEditorState";
+import { usePersistence } from "./usePersistence";
 
 function Editor() {
-  const { lines, cursor, selectionAnchor, hasSelection, handleKeyDown } = useEditorState();
+  const {
+    document,
+    lines,
+    cursor,
+    selectionAnchor,
+    hasSelection,
+    handleKeyDown,
+    updateDocument,
+  } = useEditorState();
+
+  const { saveState, flushSave } = usePersistence(document, updateDocument);
+
   const [cursorVisible, setCursorVisible] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +37,16 @@ function Editor() {
   useEffect(() => {
     editorRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const unlisten = listen("tauri://close-requested", () => {
+      flushSave();
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [flushSave]);
 
   const renderLine = (lineText: string, lineIndex: number) => {
     const isCursorLine = lineIndex === cursor.line;
@@ -55,20 +78,26 @@ function Editor() {
     const selected = lineText.slice(selStart, selEnd);
     const afterSel = lineText.slice(selEnd);
 
-    const cursorAtStart = isCursorLine && cursor.col === selStart && posBefore(cursor, selectionAnchor!);
-    const cursorAtEnd = isCursorLine && cursor.col === selEnd && posBefore(selectionAnchor!, cursor);
+    const cursorAtStart =
+      isCursorLine && cursor.col === selStart && posBefore(cursor, selectionAnchor!);
+    const cursorAtEnd =
+      isCursorLine && cursor.col === selEnd && posBefore(selectionAnchor!, cursor);
 
     const showLineEndSelection = lineIndex !== end.line;
 
     return (
       <>
         <span>{beforeSel}</span>
-        {cursorAtStart && <span className={`cursor ${cursorVisible ? "visible" : ""}`} />}
+        {cursorAtStart && (
+          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
+        )}
         <span className="selection">
           {selected}
           {showLineEndSelection && <span className="selection-line-end" />}
         </span>
-        {cursorAtEnd && <span className={`cursor ${cursorVisible ? "visible" : ""}`} />}
+        {cursorAtEnd && (
+          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
+        )}
         <span>{afterSel}</span>
         {lineText.length === 0 && !showLineEndSelection && <span>{"\u200B"}</span>}
       </>
@@ -81,7 +110,11 @@ function Editor() {
       className="editor"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onBlur={flushSave}
     >
+      {saveState.status === "error" && (
+        <div className="save-error">Save failed: {saveState.error}</div>
+      )}
       <div className="editor-content">
         {lines.map((lineText, lineIndex) => (
           <div key={lineIndex} className="editor-line">

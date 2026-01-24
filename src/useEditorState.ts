@@ -13,71 +13,94 @@ import {
   insertCharacter,
   createInitialState,
 } from "./editorActions";
+import { type Document, createDocument } from "./documentModel";
 
 export { posEqual, posBefore, getSelectionBounds } from "./editorActions";
 export type { CursorPosition, EditorState } from "./editorActions";
+export type { Document, DocumentMetadata } from "./documentModel";
 
 export function useEditorState() {
-  const [state, setState] = useState<EditorState>(createInitialState);
+  const [document, setDocument] = useState<Document>(() =>
+    createDocument(createInitialState())
+  );
 
-  const hasSelection = checkHasSelection(state);
+  const hasSelection = checkHasSelection(document.editor);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) {
-      return;
-    }
+  const updateEditor = useCallback(
+    (updater: (state: EditorState) => EditorState) => {
+      setDocument((doc) => ({
+        ...doc,
+        editor: updater(doc.editor),
+      }));
+    },
+    []
+  );
 
-    const isShift = e.shiftKey;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
 
-    switch (e.key) {
-      case "ArrowLeft":
-        e.preventDefault();
-        setState((s) => moveCursorLeft(s, isShift));
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        setState((s) => moveCursorRight(s, isShift));
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setState((s) => moveCursorUp(s, isShift));
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        setState((s) => moveCursorDown(s, isShift));
-        break;
-      case "Backspace":
-        e.preventDefault();
-        setState(backspace);
-        break;
-      case "Delete":
-        e.preventDefault();
-        setState(deleteForward);
-        break;
-      case "Tab":
-        e.preventDefault();
-        setState(insertTab);
-        break;
-      case "Enter":
-        e.preventDefault();
-        setState(insertNewline);
-        break;
-      case "Shift":
-        break;
-      default:
-        if (e.key.length === 1) {
+      const isShift = e.shiftKey;
+
+      switch (e.key) {
+        case "ArrowLeft":
           e.preventDefault();
-          setState((s) => insertCharacter(s, e.key));
-        }
-        break;
-    }
+          updateEditor((s) => moveCursorLeft(s, isShift));
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          updateEditor((s) => moveCursorRight(s, isShift));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          updateEditor((s) => moveCursorUp(s, isShift));
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          updateEditor((s) => moveCursorDown(s, isShift));
+          break;
+        case "Backspace":
+          e.preventDefault();
+          updateEditor(backspace);
+          break;
+        case "Delete":
+          e.preventDefault();
+          updateEditor(deleteForward);
+          break;
+        case "Tab":
+          e.preventDefault();
+          updateEditor(insertTab);
+          break;
+        case "Enter":
+          e.preventDefault();
+          updateEditor(insertNewline);
+          break;
+        case "Shift":
+          break;
+        default:
+          if (e.key.length === 1) {
+            e.preventDefault();
+            updateEditor((s) => insertCharacter(s, e.key));
+          }
+          break;
+      }
+    },
+    [updateEditor]
+  );
+
+  const updateDocument = useCallback((doc: Document) => {
+    setDocument(doc);
   }, []);
 
   return {
-    lines: state.lines,
-    cursor: state.cursor,
-    selectionAnchor: state.selectionAnchor,
+    document,
+    lines: document.editor.lines,
+    cursor: document.editor.cursor,
+    selectionAnchor: document.editor.selectionAnchor,
     hasSelection,
     handleKeyDown,
+    updateDocument,
   };
 }
