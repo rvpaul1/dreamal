@@ -4,20 +4,10 @@ import { useEditorState } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
 import { useMacroAutocomplete } from "./useMacroAutocomplete";
+import { useMarkdown } from "./useMarkdown";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
 import type { Document } from "./documentModel";
-
-function getHeadingInfo(line: string): { level: number; prefixLength: number } | null {
-  const match = line.match(/^(#{1,6}) /);
-  if (match) {
-    return {
-      level: match[1].length,
-      prefixLength: match[0].length,
-    };
-  }
-  return null;
-}
 
 function Editor() {
   const {
@@ -58,6 +48,8 @@ function Editor() {
     cursorCol: cursor.col,
     onSelectMacro: applyMacro,
   });
+
+  const { getLineClass, getHeadingInfo } = useMarkdown(lines);
 
   const [cursorVisible, setCursorVisible] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -142,36 +134,29 @@ function Editor() {
         <div className="save-error">Save failed: {saveState.error}</div>
       )}
       <div className="editor-content">
-        {lines.map((lineText, lineIndex) => {
-          const headingInfo = getHeadingInfo(lineText);
-          const lineClass = headingInfo
-            ? `editor-line md-h${headingInfo.level}`
-            : "editor-line";
-
-          return (
-            <div
-              key={lineIndex}
-              className={lineClass}
-              ref={(el) => {
-                if (el) {
-                  lineRefs.current.set(lineIndex, el);
-                } else {
-                  lineRefs.current.delete(lineIndex);
-                }
-              }}
-            >
-              <RenderedLine
-                lineText={lineText}
-                lineIndex={lineIndex}
-                cursor={cursor}
-                selectionAnchor={selectionAnchor}
-                hasSelection={hasSelection}
-                cursorVisible={cursorVisible}
-                headingInfo={headingInfo}
-              />
-            </div>
-          );
-        })}
+        {lines.map((lineText, lineIndex) => (
+          <div
+            key={lineIndex}
+            className={getLineClass(lineIndex)}
+            ref={(el) => {
+              if (el) {
+                lineRefs.current.set(lineIndex, el);
+              } else {
+                lineRefs.current.delete(lineIndex);
+              }
+            }}
+          >
+            <RenderedLine
+              lineText={lineText}
+              lineIndex={lineIndex}
+              cursor={cursor}
+              selectionAnchor={selectionAnchor}
+              hasSelection={hasSelection}
+              cursorVisible={cursorVisible}
+              headingInfo={getHeadingInfo(lineIndex)}
+            />
+          </div>
+        ))}
       </div>
       {showAutocomplete && (
         <MacroAutocomplete

@@ -1,0 +1,42 @@
+import { useMemo } from "react";
+
+export interface HeadingInfo {
+  level: number;
+  prefixLength: number;
+}
+
+function getHeadingInfo(line: string): HeadingInfo | null {
+  const match = line.match(/^(#{1,6}) /);
+  if (match) {
+    return {
+      level: match[1].length,
+      prefixLength: match[0].length,
+    };
+  }
+  return null;
+}
+
+export function useMarkdown(lines: string[]) {
+  const lineInfo = useMemo(() => {
+    return lines.map((line) => ({
+      headingInfo: getHeadingInfo(line),
+    }));
+  }, [lines]);
+
+  const getLineClass = (lineIndex: number): string => {
+    const info = lineInfo[lineIndex];
+    if (info?.headingInfo) {
+      return `editor-line md-h${info.headingInfo.level}`;
+    }
+    return "editor-line";
+  };
+
+  const getHeadingInfoForLine = (lineIndex: number): HeadingInfo | null => {
+    return lineInfo[lineIndex]?.headingInfo ?? null;
+  };
+
+  return {
+    getLineClass,
+    getHeadingInfo: getHeadingInfoForLine,
+  };
+}
