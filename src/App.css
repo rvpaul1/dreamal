@@ -94,3 +94,37 @@ html, body, #root {
   margin-bottom: 8px;
   border-radius: 4px;
 }
+
+.md-h1 {
+  font-size: 2em;
+  font-weight: bold;
+  min-height: 1.5em;
+}
+
+.md-h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  min-height: 1.4em;
+}
+
+.md-h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  min-height: 1.3em;
+}
+
+.md-h4 {
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.md-h5 {
+  font-size: 1em;
+  font-weight: bold;
+}
+
+.md-h6 {
+  font-size: 0.9em;
+  font-weight: bold;
+  color: #a0a0a0;
+}

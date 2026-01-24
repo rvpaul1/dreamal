@@ -11,6 +11,17 @@ import { MacroAutocomplete } from "./MacroAutocomplete";
 import { getCurrentMacroInput, getMatchingMacros, type Macro } from "./macros";
 import type { Document } from "./documentModel";
 
+function getHeadingInfo(line: string): { level: number; prefixLength: number } | null {
+  const match = line.match(/^(#{1,6}) /);
+  if (match) {
+    return {
+      level: match[1].length,
+      prefixLength: match[0].length,
+    };
+  }
+  return null;
+}
+
 function Editor() {
   const {
     document,
@@ -170,27 +181,32 @@ function Editor() {
     };
   }, [cursor.line]);
 
-  const renderLine = (lineText: string, lineIndex: number) => {
+  const renderLine = (lineText: string, lineIndex: number, headingInfo: { level: number; prefixLength: number } | null) => {
     const isCursorLine = lineIndex === cursor.line;
+    const cursorInPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
+    const hidePrefix = headingInfo && !isCursorLine && !hasSelection;
+    const prefixLen = hidePrefix ? headingInfo.prefixLength : 0;
+    const displayText = hidePrefix ? lineText.slice(prefixLen) : lineText;
 
     if (!hasSelection) {
       if (isCursorLine) {
+        const adjustedCol = cursorInPrefix ? cursor.col : cursor.col - prefixLen;
         return (
           <>
-            <span>{lineText.slice(0, cursor.col)}</span>
+            <span>{displayText.slice(0, adjustedCol)}</span>
             <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-            <span>{lineText.slice(cursor.col)}</span>
+            <span>{displayText.slice(adjustedCol)}</span>
           </>
         );
       }
-      return <span>{lineText || "\u200B"}</span>;
+      return <span>{displayText || "\u200B"}</span>;
     }
 
     const { start, end } = getSelectionBounds(selectionAnchor!, cursor);
     const isInSelection = lineIndex >= start.line && lineIndex <= end.line;
 
     if (!isInSelection) {
-      return <span>{lineText || "\u200B"}</span>;
+      return <span>{displayText || "\u200B"}</span>;
     }
 
     const selStart = lineIndex === start.line ? start.col : 0;
@@ -238,21 +254,28 @@ function Editor() {
         <div className="save-error">Save failed: {saveState.error}</div>
       )}
       <div className="editor-content">
-        {lines.map((lineText, lineIndex) => (
-          <div
-            key={lineIndex}
-            className="editor-line"
-            ref={(el) => {
-              if (el) {
-                lineRefs.current.set(lineIndex, el);
-              } else {
-                lineRefs.current.delete(lineIndex);
-              }
-            }}
-          >
-            {renderLine(lineText, lineIndex)}
-          </div>
-        ))}
+        {lines.map((lineText, lineIndex) => {
+          const headingInfo = getHeadingInfo(lineText);
+          const lineClass = headingInfo
+            ? `editor-line md-h${headingInfo.level}`
+            : "editor-line";
+
+          return (
+            <div
+              key={lineIndex}
+              className={lineClass}
+              ref={(el) => {
+                if (el) {
+                  lineRefs.current.set(lineIndex, el);
+                } else {
+                  lineRefs.current.delete(lineIndex);
+                }
+              }}
+            >
+              {renderLine(lineText, lineIndex, headingInfo)}
+            </div>
+          );
+        })}
       </div>
       {showAutocomplete && (
         <MacroAutocomplete
