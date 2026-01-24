@@ -296,3 +296,41 @@ export function createInitialState(): EditorState {
     selectionAnchor: null,
   };
 }
+
+export function swapLineUp(state: EditorState): EditorState {
+  const { line, col } = state.cursor;
+
+  if (line === 0) {
+    return state;
+  }
+
+  const newLines = [...state.lines];
+  [newLines[line - 1], newLines[line]] = [newLines[line], newLines[line - 1]];
+
+  const newCol = Math.min(col, newLines[line - 1].length);
+
+  return {
+    lines: newLines,
+    cursor: { line: line - 1, col: newCol },
+    selectionAnchor: null,
+  };
+}
+
+export function swapLineDown(state: EditorState): EditorState {
+  const { line, col } = state.cursor;
+
+  if (line >= state.lines.length - 1) {
+    return state;
+  }
+
+  const newLines = [...state.lines];
+  [newLines[line], newLines[line + 1]] = [newLines[line + 1], newLines[line]];
+
+  const newCol = Math.min(col, newLines[line + 1].length);
+
+  return {
+    lines: newLines,
+    cursor: { line: line + 1, col: newCol },
+    selectionAnchor: null,
+  };
+}

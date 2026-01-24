@@ -12,6 +12,8 @@ import {
   insertNewline,
   insertCharacter,
   createInitialState,
+  swapLineUp,
+  swapLineDown,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
@@ -39,7 +41,21 @@ export function useEditorState() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) {
+      if (e.metaKey && !e.shiftKey && !e.altKey) {
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          updateEditor(swapLineUp);
+          return;
+        }
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          updateEditor(swapLineDown);
+          return;
+        }
+        return;
+      }
+
+      if (e.ctrlKey || e.altKey) {
         return;
       }
 

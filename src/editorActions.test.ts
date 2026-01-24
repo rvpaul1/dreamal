@@ -17,6 +17,8 @@ import {
   insertNewline,
   insertCharacter,
   createInitialState,
+  swapLineUp,
+  swapLineDown,
 } from "./editorActions";
 
 function state(
@@ -391,6 +393,82 @@ describe("Initial State", () => {
     expect(result.lines).toEqual([""]);
     expect(result.cursor).toEqual(cursor(0, 0));
     expect(result.selectionAnchor).toBeNull();
+  });
+});
+
+describe("Line Swapping", () => {
+  describe("swapLineUp", () => {
+    it("swaps current line with previous line", () => {
+      const result = swapLineUp(state(["first", "second", "third"], cursor(1, 3)));
+      expect(result.lines).toEqual(["second", "first", "third"]);
+      expect(result.cursor).toEqual(cursor(0, 3));
+    });
+
+    it("does nothing on first line", () => {
+      const original = state(["first", "second"], cursor(0, 2));
+      const result = swapLineUp(original);
+      expect(result).toBe(original);
+    });
+
+    it("clamps cursor column to new line length", () => {
+      const result = swapLineUp(state(["hi", "hello"], cursor(1, 4)));
+      expect(result.lines).toEqual(["hello", "hi"]);
+      expect(result.cursor).toEqual(cursor(0, 4));
+    });
+
+    it("clamps cursor to shorter previous line", () => {
+      const result = swapLineUp(state(["ab", "hello"], cursor(1, 5)));
+      expect(result.lines).toEqual(["hello", "ab"]);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("clears selection", () => {
+      const result = swapLineUp(state(["first", "second"], cursor(1, 3), cursor(1, 0)));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("works with last line", () => {
+      const result = swapLineUp(state(["first", "second", "third"], cursor(2, 2)));
+      expect(result.lines).toEqual(["first", "third", "second"]);
+      expect(result.cursor).toEqual(cursor(1, 2));
+    });
+  });
+
+  describe("swapLineDown", () => {
+    it("swaps current line with next line", () => {
+      const result = swapLineDown(state(["first", "second", "third"], cursor(0, 3)));
+      expect(result.lines).toEqual(["second", "first", "third"]);
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+
+    it("does nothing on last line", () => {
+      const original = state(["first", "second"], cursor(1, 2));
+      const result = swapLineDown(original);
+      expect(result).toBe(original);
+    });
+
+    it("clamps cursor column to new line length", () => {
+      const result = swapLineDown(state(["hello", "hi"], cursor(0, 4)));
+      expect(result.lines).toEqual(["hi", "hello"]);
+      expect(result.cursor).toEqual(cursor(1, 4));
+    });
+
+    it("clamps cursor to shorter next line", () => {
+      const result = swapLineDown(state(["hello", "ab"], cursor(0, 5)));
+      expect(result.lines).toEqual(["ab", "hello"]);
+      expect(result.cursor).toEqual(cursor(1, 5));
+    });
+
+    it("clears selection", () => {
+      const result = swapLineDown(state(["first", "second"], cursor(0, 3), cursor(0, 0)));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("works with middle line", () => {
+      const result = swapLineDown(state(["first", "second", "third"], cursor(1, 2)));
+      expect(result.lines).toEqual(["first", "third", "second"]);
+      expect(result.cursor).toEqual(cursor(2, 2));
+    });
   });
 });
 
