@@ -1,14 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
-import {
-  useEditorState,
-  getSelectionBounds,
-  posBefore,
-} from "./useEditorState";
+import { useEditorState } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
+import { useMacroAutocomplete } from "./useMacroAutocomplete";
 import { MacroAutocomplete } from "./MacroAutocomplete";
-import { getCurrentMacroInput, getMatchingMacros, type Macro } from "./macros";
+import { RenderedLine } from "./RenderedLine";
 import type { Document } from "./documentModel";
 
 function getHeadingInfo(line: string): { level: number; prefixLength: number } | null {
@@ -50,26 +47,21 @@ function Editor() {
     flushSave
   );
 
+  const {
+    isOpen: showAutocomplete,
+    matchingMacros,
+    selectedIndex: autocompleteIndex,
+    handleKeyDown: handleMacroKeyDown,
+  } = useMacroAutocomplete({
+    lines,
+    cursorLine: cursor.line,
+    cursorCol: cursor.col,
+    onSelectMacro: applyMacro,
+  });
+
   const [cursorVisible, setCursorVisible] = useState(true);
-  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-
-  const macroInput = useMemo(
-    () => getCurrentMacroInput(lines, cursor.line, cursor.col),
-    [lines, cursor.line, cursor.col]
-  );
-
-  const matchingMacros = useMemo(
-    () => (macroInput ? getMatchingMacros(macroInput, 10) : []),
-    [macroInput]
-  );
-
-  const showAutocomplete = matchingMacros.length > 0;
-
-  useEffect(() => {
-    setAutocompleteIndex(0);
-  }, [macroInput]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -96,15 +88,6 @@ function Editor() {
     };
   }, [flushSave]);
 
-  const selectMacro = useCallback(
-    (macro: Macro) => {
-      if (macroInput) {
-        applyMacro(macro, macroInput.length);
-      }
-    },
-    [applyMacro, macroInput]
-  );
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.metaKey && e.shiftKey && e.key === "[") {
@@ -123,47 +106,13 @@ function Editor() {
         return;
       }
 
-      if (showAutocomplete) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setAutocompleteIndex((i) =>
-            i < matchingMacros.length - 1 ? i + 1 : i
-          );
-          return;
-        }
-
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setAutocompleteIndex((i) => (i > 0 ? i - 1 : i));
-          return;
-        }
-
-        if (e.key === "Tab" || e.key === "Enter") {
-          e.preventDefault();
-          selectMacro(matchingMacros[autocompleteIndex]);
-          return;
-        }
-
-        if (e.key === "Escape") {
-          e.preventDefault();
-          setAutocompleteIndex(0);
-          return;
-        }
+      if (handleMacroKeyDown(e)) {
+        return;
       }
 
       handleEditorKeyDown(e);
     },
-    [
-      handleEditorKeyDown,
-      navigatePrev,
-      navigateNext,
-      hasPrev,
-      hasNext,
-      showAutocomplete,
-      matchingMacros,
-      autocompleteIndex,
-      selectMacro,
-    ]
+    [handleEditorKeyDown, navigatePrev, navigateNext, hasPrev, hasNext, handleMacroKeyDown]
   );
 
   const getAutocompletePosition = useCallback(() => {
@@ -180,67 +129,6 @@ function Editor() {
       left: lineRect.left - editorRect.left,
     };
   }, [cursor.line]);
-
-  const renderLine = (lineText: string, lineIndex: number, headingInfo: { level: number; prefixLength: number } | null) => {
-    const isCursorLine = lineIndex === cursor.line;
-    const cursorInPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
-    const hidePrefix = headingInfo && !isCursorLine && !hasSelection;
-    const prefixLen = hidePrefix ? headingInfo.prefixLength : 0;
-    const displayText = hidePrefix ? lineText.slice(prefixLen) : lineText;
-
-    if (!hasSelection) {
-      if (isCursorLine) {
-        const adjustedCol = cursorInPrefix ? cursor.col : cursor.col - prefixLen;
-        return (
-          <>
-            <span>{displayText.slice(0, adjustedCol)}</span>
-            <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-            <span>{displayText.slice(adjustedCol)}</span>
-          </>
-        );
-      }
-      return <span>{displayText || "\u200B"}</span>;
-    }
-
-    const { start, end } = getSelectionBounds(selectionAnchor!, cursor);
-    const isInSelection = lineIndex >= start.line && lineIndex <= end.line;
-
-    if (!isInSelection) {
-      return <span>{displayText || "\u200B"}</span>;
-    }
-
-    const selStart = lineIndex === start.line ? start.col : 0;
-    const selEnd = lineIndex === end.line ? end.col : lineText.length;
-
-    const beforeSel = lineText.slice(0, selStart);
-    const selected = lineText.slice(selStart, selEnd);
-    const afterSel = lineText.slice(selEnd);
-
-    const cursorAtStart =
-      isCursorLine && cursor.col === selStart && posBefore(cursor, selectionAnchor!);
-    const cursorAtEnd =
-      isCursorLine && cursor.col === selEnd && posBefore(selectionAnchor!, cursor);
-
-    const showLineEndSelection = lineIndex !== end.line;
-
-    return (
-      <>
-        <span>{beforeSel}</span>
-        {cursorAtStart && (
-          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-        )}
-        <span className="selection">
-          {selected}
-          {showLineEndSelection && <span className="selection-line-end" />}
-        </span>
-        {cursorAtEnd && (
-          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-        )}
-        <span>{afterSel}</span>
-        {lineText.length === 0 && !showLineEndSelection && <span>{"\u200B"}</span>}
-      </>
-    );
-  };
 
   return (
     <div
@@ -272,7 +160,15 @@ function Editor() {
                 }
               }}
             >
-              {renderLine(lineText, lineIndex, headingInfo)}
+              <RenderedLine
+                lineText={lineText}
+                lineIndex={lineIndex}
+                cursor={cursor}
+                selectionAnchor={selectionAnchor}
+                hasSelection={hasSelection}
+                cursorVisible={cursorVisible}
+                headingInfo={headingInfo}
+              />
             </div>
           );
         })}
