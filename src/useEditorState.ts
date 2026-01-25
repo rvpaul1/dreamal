@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   type EditorState,
+  type CursorPosition,
   hasSelection as checkHasSelection,
   moveCursorLeft,
   moveCursorRight,
@@ -18,6 +19,8 @@ import {
   createInitialState,
   swapLineUp,
   swapLineDown,
+  setCursor,
+  setCursorWithAnchor,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
@@ -165,6 +168,20 @@ export function useEditorState() {
     [updateEditor]
   );
 
+  const handleClickAt = useCallback(
+    (pos: CursorPosition) => {
+      updateEditor((s) => setCursor(s, pos));
+    },
+    [updateEditor]
+  );
+
+  const handleDragTo = useCallback(
+    (pos: CursorPosition, anchor: CursorPosition) => {
+      updateEditor((s) => setCursorWithAnchor(s, pos, anchor));
+    },
+    [updateEditor]
+  );
+
   return {
     document,
     lines: document.editor.lines,
@@ -172,6 +189,8 @@ export function useEditorState() {
     selectionAnchor: document.editor.selectionAnchor,
     hasSelection,
     handleKeyDown,
+    handleClickAt,
+    handleDragTo,
     updateDocument,
     updateMetadata,
     applyMacro,

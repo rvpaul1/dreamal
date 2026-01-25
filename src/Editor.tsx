@@ -5,6 +5,7 @@ import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
 import { useMacroAutocomplete } from "./useMacroAutocomplete";
 import { useMarkdown } from "./useMarkdown";
+import { useMouseSelection } from "./useMouseSelection";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
 import type { Document } from "./documentModel";
@@ -17,6 +18,8 @@ function Editor() {
     selectionAnchor,
     hasSelection,
     handleKeyDown: handleEditorKeyDown,
+    handleClickAt,
+    handleDragTo,
     updateDocument,
     updateMetadata,
     applyMacro,
@@ -55,6 +58,13 @@ function Editor() {
   const [cursorVisible, setCursorVisible] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const { handleMouseDown, handleMouseMove, handleMouseUp } = useMouseSelection({
+    lines,
+    lineRefs,
+    onClickAt: handleClickAt,
+    onDragTo: handleDragTo,
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -130,6 +140,9 @@ function Editor() {
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onBlur={flushSave}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       {saveState.status === "error" && (
         <div className="save-error">Save failed: {saveState.error}</div>

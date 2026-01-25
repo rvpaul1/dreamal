@@ -412,3 +412,29 @@ export function moveCursorToDocEnd(state: EditorState, isShift: boolean): Editor
     selectionAnchor: null,
   };
 }
+
+export function setCursor(state: EditorState, pos: CursorPosition): EditorState {
+  const line = Math.max(0, Math.min(pos.line, state.lines.length - 1));
+  const col = Math.max(0, Math.min(pos.col, state.lines[line].length));
+  return {
+    ...state,
+    cursor: { line, col },
+    selectionAnchor: null,
+  };
+}
+
+export function setCursorWithAnchor(
+  state: EditorState,
+  cursorPos: CursorPosition,
+  anchorPos: CursorPosition
+): EditorState {
+  const cursorLine = Math.max(0, Math.min(cursorPos.line, state.lines.length - 1));
+  const cursorCol = Math.max(0, Math.min(cursorPos.col, state.lines[cursorLine].length));
+  const anchorLine = Math.max(0, Math.min(anchorPos.line, state.lines.length - 1));
+  const anchorCol = Math.max(0, Math.min(anchorPos.col, state.lines[anchorLine].length));
+  return {
+    ...state,
+    cursor: { line: cursorLine, col: cursorCol },
+    selectionAnchor: { line: anchorLine, col: anchorCol },
+  };
+}

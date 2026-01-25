@@ -15,6 +15,8 @@ import {
   moveCursorToLineEnd,
   moveCursorToDocStart,
   moveCursorToDocEnd,
+  setCursor,
+  setCursorWithAnchor,
   backspace,
   deleteForward,
   insertTab,
@@ -383,6 +385,94 @@ describe("Cursor Movement", () => {
       );
       expect(result.cursor).toEqual(cursor(2, 2));
       expect(result.selectionAnchor).toEqual(cursor(1, 3));
+    });
+  });
+
+  describe("setCursor", () => {
+    it("sets cursor to specified position", () => {
+      const result = setCursor(state(["hello", "world"], cursor(0, 0)), cursor(1, 3));
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+
+    it("clears any existing selection", () => {
+      const result = setCursor(
+        state(["hello", "world"], cursor(0, 5), cursor(0, 0)),
+        cursor(1, 2)
+      );
+      expect(result.cursor).toEqual(cursor(1, 2));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("clamps line to valid range", () => {
+      const result = setCursor(state(["hello"], cursor(0, 0)), cursor(5, 0));
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("clamps negative line to zero", () => {
+      const result = setCursor(state(["hello"], cursor(0, 3)), cursor(-1, 2));
+      expect(result.cursor).toEqual(cursor(0, 2));
+    });
+
+    it("clamps column to line length", () => {
+      const result = setCursor(state(["hello"], cursor(0, 0)), cursor(0, 10));
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("clamps negative column to zero", () => {
+      const result = setCursor(state(["hello"], cursor(0, 3)), cursor(0, -5));
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+  });
+
+  describe("setCursorWithAnchor", () => {
+    it("sets cursor and anchor to specified positions", () => {
+      const result = setCursorWithAnchor(
+        state(["hello", "world"], cursor(0, 0)),
+        cursor(1, 3),
+        cursor(0, 2)
+      );
+      expect(result.cursor).toEqual(cursor(1, 3));
+      expect(result.selectionAnchor).toEqual(cursor(0, 2));
+    });
+
+    it("clamps cursor to valid range", () => {
+      const result = setCursorWithAnchor(
+        state(["hello"], cursor(0, 0)),
+        cursor(5, 10),
+        cursor(0, 2)
+      );
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 2));
+    });
+
+    it("clamps anchor to valid range", () => {
+      const result = setCursorWithAnchor(
+        state(["hello"], cursor(0, 0)),
+        cursor(0, 2),
+        cursor(5, 10)
+      );
+      expect(result.cursor).toEqual(cursor(0, 2));
+      expect(result.selectionAnchor).toEqual(cursor(0, 5));
+    });
+
+    it("allows cursor and anchor on same position", () => {
+      const result = setCursorWithAnchor(
+        state(["hello"], cursor(0, 0)),
+        cursor(0, 3),
+        cursor(0, 3)
+      );
+      expect(result.cursor).toEqual(cursor(0, 3));
+      expect(result.selectionAnchor).toEqual(cursor(0, 3));
+    });
+
+    it("works with multi-line documents", () => {
+      const result = setCursorWithAnchor(
+        state(["first", "second", "third"], cursor(0, 0)),
+        cursor(2, 4),
+        cursor(0, 1)
+      );
+      expect(result.cursor).toEqual(cursor(2, 4));
+      expect(result.selectionAnchor).toEqual(cursor(0, 1));
     });
   });
 });
