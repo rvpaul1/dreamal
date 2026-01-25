@@ -12,7 +12,7 @@ interface SaveState {
 
 export function usePersistence(
   document: Document,
-  onDocumentUpdate: (doc: Document) => void
+  onMetadataUpdate: (metadata: Document["metadata"]) => void
 ) {
   const [journalDir, setJournalDir] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
@@ -49,7 +49,7 @@ export function usePersistence(
       }
 
       const updatedDoc = updateModified(doc);
-      onDocumentUpdate(updatedDoc);
+      onMetadataUpdate(updatedDoc.metadata);
 
       setSaveState({ status: "saving" });
 
@@ -69,7 +69,7 @@ export function usePersistence(
         }
       }
     },
-    [journalDir, onDocumentUpdate]
+    [journalDir, onMetadataUpdate]
   );
 
   const scheduleSave = useCallback(

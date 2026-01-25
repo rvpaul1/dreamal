@@ -18,10 +18,11 @@ function Editor() {
     hasSelection,
     handleKeyDown: handleEditorKeyDown,
     updateDocument,
+    updateMetadata,
     applyMacro,
   } = useEditorState();
 
-  const { saveState, flushSave, journalDir } = usePersistence(document, updateDocument);
+  const { saveState, flushSave, journalDir } = usePersistence(document, updateMetadata);
 
   const handleLoadEntry = useCallback(
     (doc: Document, _filepath: string) => {

@@ -111,6 +111,10 @@ export function useEditorState() {
     setDocument(doc);
   }, []);
 
+  const updateMetadata = useCallback((metadata: Document["metadata"]) => {
+    setDocument((doc) => ({ ...doc, metadata }));
+  }, []);
+
   const applyMacro = useCallback(
     (macro: Macro, inputLength: number) => {
       updateEditor((state) => {
@@ -142,6 +146,7 @@ export function useEditorState() {
     hasSelection,
     handleKeyDown,
     updateDocument,
+    updateMetadata,
     applyMacro,
   };
 }
