@@ -11,6 +11,10 @@ import {
   moveCursorRight,
   moveCursorUp,
   moveCursorDown,
+  moveCursorToLineStart,
+  moveCursorToLineEnd,
+  moveCursorToDocStart,
+  moveCursorToDocEnd,
   backspace,
   deleteForward,
   insertTab,
@@ -211,6 +215,174 @@ describe("Cursor Movement", () => {
       const result = moveCursorDown(state(["hello", "world"], cursor(0, 3)), true);
       expect(result.cursor).toEqual(cursor(1, 3));
       expect(result.selectionAnchor).toEqual(cursor(0, 3));
+    });
+  });
+
+  describe("moveCursorToLineStart", () => {
+    it("moves cursor to beginning of line", () => {
+      const result = moveCursorToLineStart(state(["hello"], cursor(0, 3)), false);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("stays at start if already there", () => {
+      const result = moveCursorToLineStart(state(["hello"], cursor(0, 0)), false);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("works on any line in document", () => {
+      const result = moveCursorToLineStart(state(["first", "second", "third"], cursor(2, 4)), false);
+      expect(result.cursor).toEqual(cursor(2, 0));
+    });
+
+    it("clears selection without shift", () => {
+      const result = moveCursorToLineStart(
+        state(["hello"], cursor(0, 5), cursor(0, 2)),
+        false
+      );
+      expect(result.cursor).toEqual(cursor(0, 0));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorToLineStart(state(["hello"], cursor(0, 4)), true);
+      expect(result.cursor).toEqual(cursor(0, 0));
+      expect(result.selectionAnchor).toEqual(cursor(0, 4));
+    });
+
+    it("continues extending existing selection with shift", () => {
+      const result = moveCursorToLineStart(
+        state(["hello"], cursor(0, 3), cursor(0, 5)),
+        true
+      );
+      expect(result.cursor).toEqual(cursor(0, 0));
+      expect(result.selectionAnchor).toEqual(cursor(0, 5));
+    });
+  });
+
+  describe("moveCursorToLineEnd", () => {
+    it("moves cursor to end of line", () => {
+      const result = moveCursorToLineEnd(state(["hello"], cursor(0, 2)), false);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("stays at end if already there", () => {
+      const result = moveCursorToLineEnd(state(["hello"], cursor(0, 5)), false);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("works on any line in document", () => {
+      const result = moveCursorToLineEnd(state(["first", "second", "third"], cursor(1, 0)), false);
+      expect(result.cursor).toEqual(cursor(1, 6));
+    });
+
+    it("handles empty lines", () => {
+      const result = moveCursorToLineEnd(state(["hello", "", "world"], cursor(1, 0)), false);
+      expect(result.cursor).toEqual(cursor(1, 0));
+    });
+
+    it("clears selection without shift", () => {
+      const result = moveCursorToLineEnd(
+        state(["hello"], cursor(0, 2), cursor(0, 0)),
+        false
+      );
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorToLineEnd(state(["hello"], cursor(0, 1)), true);
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 1));
+    });
+  });
+
+  describe("moveCursorToDocStart", () => {
+    it("moves cursor to first line preserving column", () => {
+      const result = moveCursorToDocStart(state(["hello", "world", "test"], cursor(2, 3)), false);
+      expect(result.cursor).toEqual(cursor(0, 3));
+    });
+
+    it("clamps column to first line length", () => {
+      const result = moveCursorToDocStart(state(["hi", "world"], cursor(1, 4)), false);
+      expect(result.cursor).toEqual(cursor(0, 2));
+    });
+
+    it("stays on first line if already there", () => {
+      const result = moveCursorToDocStart(state(["hello", "world"], cursor(0, 3)), false);
+      expect(result.cursor).toEqual(cursor(0, 3));
+    });
+
+    it("handles empty first line", () => {
+      const result = moveCursorToDocStart(state(["", "world"], cursor(1, 3)), false);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("clears selection without shift", () => {
+      const result = moveCursorToDocStart(
+        state(["hello", "world"], cursor(1, 3), cursor(0, 0)),
+        false
+      );
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorToDocStart(state(["hello", "world"], cursor(1, 3)), true);
+      expect(result.cursor).toEqual(cursor(0, 3));
+      expect(result.selectionAnchor).toEqual(cursor(1, 3));
+    });
+
+    it("continues extending existing selection with shift", () => {
+      const result = moveCursorToDocStart(
+        state(["hello", "world", "test"], cursor(2, 2), cursor(1, 3)),
+        true
+      );
+      expect(result.cursor).toEqual(cursor(0, 2));
+      expect(result.selectionAnchor).toEqual(cursor(1, 3));
+    });
+  });
+
+  describe("moveCursorToDocEnd", () => {
+    it("moves cursor to last line preserving column", () => {
+      const result = moveCursorToDocEnd(state(["hello", "world", "test"], cursor(0, 3)), false);
+      expect(result.cursor).toEqual(cursor(2, 3));
+    });
+
+    it("clamps column to last line length", () => {
+      const result = moveCursorToDocEnd(state(["hello", "hi"], cursor(0, 4)), false);
+      expect(result.cursor).toEqual(cursor(1, 2));
+    });
+
+    it("stays on last line if already there", () => {
+      const result = moveCursorToDocEnd(state(["hello", "world"], cursor(1, 3)), false);
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+
+    it("handles empty last line", () => {
+      const result = moveCursorToDocEnd(state(["hello", ""], cursor(0, 3)), false);
+      expect(result.cursor).toEqual(cursor(1, 0));
+    });
+
+    it("clears selection without shift", () => {
+      const result = moveCursorToDocEnd(
+        state(["hello", "world"], cursor(0, 2), cursor(0, 5)),
+        false
+      );
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorToDocEnd(state(["hello", "world"], cursor(0, 3)), true);
+      expect(result.cursor).toEqual(cursor(1, 3));
+      expect(result.selectionAnchor).toEqual(cursor(0, 3));
+    });
+
+    it("continues extending existing selection with shift", () => {
+      const result = moveCursorToDocEnd(
+        state(["hello", "world", "test"], cursor(0, 2), cursor(1, 3)),
+        true
+      );
+      expect(result.cursor).toEqual(cursor(2, 2));
+      expect(result.selectionAnchor).toEqual(cursor(1, 3));
     });
   });
 });

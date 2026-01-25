@@ -334,3 +334,81 @@ export function swapLineDown(state: EditorState): EditorState {
     selectionAnchor: null,
   };
 }
+
+export function moveCursorToLineStart(state: EditorState, isShift: boolean): EditorState {
+  const newPos: CursorPosition = { line: state.cursor.line, col: 0 };
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+
+  return {
+    ...state,
+    cursor: newPos,
+    selectionAnchor: null,
+  };
+}
+
+export function moveCursorToLineEnd(state: EditorState, isShift: boolean): EditorState {
+  const { line } = state.cursor;
+  const newPos: CursorPosition = { line, col: state.lines[line].length };
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+
+  return {
+    ...state,
+    cursor: newPos,
+    selectionAnchor: null,
+  };
+}
+
+export function moveCursorToDocStart(state: EditorState, isShift: boolean): EditorState {
+  const { col } = state.cursor;
+  const newCol = Math.min(col, state.lines[0].length);
+  const newPos: CursorPosition = { line: 0, col: newCol };
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+
+  return {
+    ...state,
+    cursor: newPos,
+    selectionAnchor: null,
+  };
+}
+
+export function moveCursorToDocEnd(state: EditorState, isShift: boolean): EditorState {
+  const { col } = state.cursor;
+  const lastLine = state.lines.length - 1;
+  const newCol = Math.min(col, state.lines[lastLine].length);
+  const newPos: CursorPosition = { line: lastLine, col: newCol };
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+
+  return {
+    ...state,
+    cursor: newPos,
+    selectionAnchor: null,
+  };
+}

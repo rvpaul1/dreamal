@@ -6,6 +6,10 @@ import {
   moveCursorRight,
   moveCursorUp,
   moveCursorDown,
+  moveCursorToLineStart,
+  moveCursorToLineEnd,
+  moveCursorToDocStart,
+  moveCursorToDocEnd,
   backspace,
   deleteForward,
   insertTab,
@@ -55,7 +59,30 @@ export function useEditorState() {
         return;
       }
 
-      if (e.metaKey || e.ctrlKey || e.altKey) {
+      if (e.metaKey && !e.altKey && !e.ctrlKey) {
+        const isShift = e.shiftKey;
+        switch (e.key) {
+          case "ArrowLeft":
+            e.preventDefault();
+            updateEditor((s) => moveCursorToLineStart(s, isShift));
+            return;
+          case "ArrowRight":
+            e.preventDefault();
+            updateEditor((s) => moveCursorToLineEnd(s, isShift));
+            return;
+          case "ArrowUp":
+            e.preventDefault();
+            updateEditor((s) => moveCursorToDocStart(s, isShift));
+            return;
+          case "ArrowDown":
+            e.preventDefault();
+            updateEditor((s) => moveCursorToDocEnd(s, isShift));
+            return;
+        }
+        return;
+      }
+
+      if (e.ctrlKey || e.altKey) {
         return;
       }
 
