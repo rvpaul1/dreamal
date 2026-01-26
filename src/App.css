@@ -139,3 +139,46 @@ html, body, #root {
   font-weight: bold;
   color: #a0a0a0;
 }
+
+.jsx-block {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.jsx-block:hover {
+  box-shadow: 0 0 0 2px rgba(100, 150, 200, 0.3);
+}
+
+.jsx-block-selected {
+  box-shadow: 0 0 0 2px #3a5d8c;
+}
+
+.jsx-block-error {
+  background-color: rgba(140, 58, 58, 0.3);
+  color: #ff8080;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.jsx-unknown-component {
+  background-color: rgba(100, 100, 100, 0.3);
+  color: #a0a0a0;
+  font-family: monospace;
+  font-size: 0.9em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.jsx-placeholder {
+  background-color: rgba(80, 80, 120, 0.3);
+  color: #b0b0e0;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.jsx-block-line {
+  min-height: 27px;
+}

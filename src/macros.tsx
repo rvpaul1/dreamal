@@ -16,6 +16,22 @@ export const macros: Macro[] = [
     trigger: "/date",
     expand: () => formatFullDate(new Date()),
   },
+  {
+    trigger: "/timer",
+    expand: () => "{{{JSX:<Timer duration={300} />}}}",
+  },
+  {
+    trigger: "/timer1",
+    expand: () => "{{{JSX:<Timer duration={60} />}}}",
+  },
+  {
+    trigger: "/timer5",
+    expand: () => "{{{JSX:<Timer duration={300} />}}}",
+  },
+  {
+    trigger: "/timer10",
+    expand: () => "{{{JSX:<Timer duration={600} />}}}",
+  },
 ];
 
 export function getCurrentMacroInput(

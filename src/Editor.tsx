@@ -9,6 +9,17 @@ import { useMouseSelection } from "./useMouseSelection";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
 import type { Document } from "./documentModel";
+import {
+  parseLineSegments,
+  serializeComponent,
+  type ParsedComponent,
+} from "./jsxBlocks";
+
+interface SelectedBlockRange {
+  line: number;
+  startCol: number;
+  endCol: number;
+}
 
 function Editor() {
   const {
@@ -26,6 +37,10 @@ function Editor() {
   } = useEditorState();
 
   const { saveState, flushSave, journalDir } = usePersistence(document, updateMetadata);
+
+  const [selectedBlockRange, setSelectedBlockRange] = useState<SelectedBlockRange | null>(null);
+  const prevCursorRef = useRef(cursor);
+  const lastInputWasClickRef = useRef(false);
 
   const handleLoadEntry = useCallback(
     (doc: Document, _filepath: string) => {
@@ -55,16 +70,123 @@ function Editor() {
 
   const { getLineClass, getHeadingInfo } = useMarkdown(lines);
 
+  const getInlineBlockAt = useCallback(
+    (line: number, col: number): { startCol: number; endCol: number } | null => {
+      const lineText = lines[line];
+      if (!lineText) return null;
+
+      const segments = parseLineSegments(lineText);
+      for (const seg of segments) {
+        if (seg.type === "jsx" && col > seg.startCol && col < seg.endCol) {
+          return { startCol: seg.startCol, endCol: seg.endCol };
+        }
+      }
+      return null;
+    },
+    [lines]
+  );
+
+  const getInlineBlockEndingBefore = useCallback(
+    (line: number, col: number): { startCol: number; endCol: number } | null => {
+      const lineText = lines[line];
+      if (!lineText) return null;
+
+      const segments = parseLineSegments(lineText);
+      for (const seg of segments) {
+        if (seg.type === "jsx" && seg.endCol === col) {
+          return { startCol: seg.startCol, endCol: seg.endCol };
+        }
+      }
+      return null;
+    },
+    [lines]
+  );
+
+  const getInlineBlockStartingAfter = useCallback(
+    (line: number, col: number): { startCol: number; endCol: number } | null => {
+      const lineText = lines[line];
+      if (!lineText) return null;
+
+      const segments = parseLineSegments(lineText);
+      for (const seg of segments) {
+        if (seg.type === "jsx" && seg.startCol === col) {
+          return { startCol: seg.startCol, endCol: seg.endCol };
+        }
+      }
+      return null;
+    },
+    [lines]
+  );
+
+  const handleBlockSelect = useCallback((lineIndex: number, startCol: number, endCol: number) => {
+    setSelectedBlockRange({ line: lineIndex, startCol, endCol });
+  }, []);
+
+  const handleBlockStateChange = useCallback(
+    (lineIndex: number, startCol: number, endCol: number, newComponent: ParsedComponent) => {
+      const lineText = lines[lineIndex];
+      const newBlockStr = `{{{JSX:${serializeComponent(newComponent)}}}}`;
+      const newLineText =
+        lineText.slice(0, startCol) + newBlockStr + lineText.slice(endCol);
+
+      const newLines = [...lines];
+      newLines[lineIndex] = newLineText;
+
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          lines: newLines,
+          cursor: { line: lineIndex, col: startCol + newBlockStr.length },
+        },
+      });
+    },
+    [document, lines, updateDocument]
+  );
+
+  const handleBlockDelete = useCallback(
+    (lineIndex: number, startCol: number, endCol: number) => {
+      const lineText = lines[lineIndex];
+      const newLineText = lineText.slice(0, startCol) + lineText.slice(endCol);
+
+      const newLines = [...lines];
+      newLines[lineIndex] = newLineText;
+
+      setSelectedBlockRange(null);
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          lines: newLines,
+          cursor: { line: lineIndex, col: startCol },
+        },
+      });
+    },
+    [document, lines, updateDocument]
+  );
+
   const [cursorVisible, setCursorVisible] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const { handleMouseDown, handleMouseMove, handleMouseUp } = useMouseSelection({
+  const {
+    handleMouseDown: baseHandleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+  } = useMouseSelection({
     lines,
     lineRefs,
     onClickAt: handleClickAt,
     onDragTo: handleDragTo,
   });
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      lastInputWasClickRef.current = true;
+      baseHandleMouseDown(e);
+    },
+    [baseHandleMouseDown]
+  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -93,6 +215,8 @@ function Editor() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      lastInputWasClickRef.current = false;
+
       if (e.metaKey && e.shiftKey && e.key === "[") {
         e.preventDefault();
         if (hasPrev) {
@@ -109,14 +233,97 @@ function Editor() {
         return;
       }
 
+      if (selectedBlockRange) {
+        if (e.key === "Backspace" || e.key === "Delete") {
+          e.preventDefault();
+          handleBlockDelete(
+            selectedBlockRange.line,
+            selectedBlockRange.startCol,
+            selectedBlockRange.endCol
+          );
+          return;
+        }
+        if (
+          e.key === "Escape" ||
+          e.key === "ArrowLeft" ||
+          e.key === "ArrowRight" ||
+          e.key === "ArrowUp" ||
+          e.key === "ArrowDown"
+        ) {
+          setSelectedBlockRange(null);
+        }
+      }
+
+      if (e.key === "Backspace" && !hasSelection) {
+        const blockBefore = getInlineBlockEndingBefore(cursor.line, cursor.col);
+        if (blockBefore) {
+          e.preventDefault();
+          handleBlockDelete(cursor.line, blockBefore.startCol, blockBefore.endCol);
+          return;
+        }
+      }
+
+      if (e.key === "Delete" && !hasSelection) {
+        const blockAfter = getInlineBlockStartingAfter(cursor.line, cursor.col);
+        if (blockAfter) {
+          e.preventDefault();
+          handleBlockDelete(cursor.line, blockAfter.startCol, blockAfter.endCol);
+          return;
+        }
+      }
+
       if (handleMacroKeyDown(e)) {
         return;
       }
 
       handleEditorKeyDown(e);
     },
-    [handleEditorKeyDown, navigatePrev, navigateNext, hasPrev, hasNext, handleMacroKeyDown]
+    [
+      handleEditorKeyDown,
+      navigatePrev,
+      navigateNext,
+      hasPrev,
+      hasNext,
+      handleMacroKeyDown,
+      selectedBlockRange,
+      handleBlockDelete,
+      cursor,
+      hasSelection,
+      getInlineBlockEndingBefore,
+      getInlineBlockStartingAfter,
+    ]
   );
+
+  useEffect(() => {
+    setSelectedBlockRange(null);
+  }, [cursor]);
+
+  useEffect(() => {
+    const block = getInlineBlockAt(cursor.line, cursor.col);
+    if (block) {
+      let newCol: number;
+
+      if (lastInputWasClickRef.current) {
+        newCol = block.startCol;
+      } else {
+        const prev = prevCursorRef.current;
+        const movingRight =
+          cursor.line > prev.line ||
+          (cursor.line === prev.line && cursor.col > prev.col);
+
+        newCol = movingRight ? block.endCol : block.startCol;
+      }
+
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          cursor: { line: cursor.line, col: newCol },
+        },
+      });
+    }
+    prevCursorRef.current = cursor;
+  }, [cursor, getInlineBlockAt, document, updateDocument]);
 
   const getAutocompletePosition = useCallback(() => {
     const lineEl = lineRefs.current.get(cursor.line);
@@ -168,6 +375,20 @@ function Editor() {
               hasSelection={hasSelection}
               cursorVisible={cursorVisible}
               headingInfo={getHeadingInfo(lineIndex)}
+              onBlockSelect={(startCol, endCol) =>
+                handleBlockSelect(lineIndex, startCol, endCol)
+              }
+              selectedBlockRange={
+                selectedBlockRange?.line === lineIndex
+                  ? selectedBlockRange
+                  : null
+              }
+              onBlockStateChange={(startCol, endCol, newComponent) =>
+                handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
+              }
+              onBlockDelete={(startCol, endCol) =>
+                handleBlockDelete(lineIndex, startCol, endCol)
+              }
             />
           </div>
         ))}
