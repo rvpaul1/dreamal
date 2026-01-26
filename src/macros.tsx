@@ -32,6 +32,18 @@ export const macros: Macro[] = [
     trigger: "/timer10",
     expand: () => "{{{JSX:<Timer duration={600} />}}}",
   },
+  {
+    trigger: "/todo",
+    expand: () => '{{{JSX:<TaskStatus status="todo" />}}}',
+  },
+  {
+    trigger: "/in-progress",
+    expand: () => '{{{JSX:<TaskStatus status="in-progress" />}}}',
+  },
+  {
+    trigger: "/done",
+    expand: () => '{{{JSX:<TaskStatus status="done" />}}}',
+  },
 ];
 
 export function getCurrentMacroInput(
