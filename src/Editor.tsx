@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { useEditorState } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
@@ -8,7 +9,9 @@ import { useMarkdown } from "./useMarkdown";
 import { useMouseSelection } from "./useMouseSelection";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
+import { isContentBlank, parseFromMDX, createDocument } from "./documentModel";
 import type { Document } from "./documentModel";
+import { createInitialState } from "./editorActions";
 import {
   parseLineSegments,
   serializeComponent,
@@ -41,6 +44,31 @@ function Editor() {
   const [selectedBlockRange, setSelectedBlockRange] = useState<SelectedBlockRange | null>(null);
   const prevCursorRef = useRef(cursor);
   const lastInputWasClickRef = useRef(false);
+  const hasCheckedInitialEntry = useRef(false);
+
+  useEffect(() => {
+    if (!journalDir || hasCheckedInitialEntry.current) return;
+    hasCheckedInitialEntry.current = true;
+
+    async function checkLatestEntry() {
+      try {
+        const entries = await invoke<string[]>("list_entries");
+        if (entries.length === 0) return;
+
+        const latestEntry = entries[entries.length - 1];
+        const content = await invoke<string>("read_entry", { filepath: latestEntry });
+
+        if (isContentBlank(content)) {
+          const doc = parseFromMDX(content, latestEntry);
+          updateDocument(doc);
+        }
+      } catch (err) {
+        console.error("Failed to check latest entry:", err);
+      }
+    }
+
+    checkLatestEntry();
+  }, [journalDir, updateDocument]);
 
   const handleLoadEntry = useCallback(
     (doc: Document, _filepath: string) => {
@@ -230,6 +258,13 @@ function Editor() {
         if (hasNext) {
           navigateNext();
         }
+        return;
+      }
+
+      if (e.metaKey && !e.shiftKey && e.key === "n") {
+        e.preventDefault();
+        flushSave();
+        updateDocument(createDocument(createInitialState()));
         return;
       }
 

@@ -142,3 +142,19 @@ function parseDateFromFilepath(filepath: string): Date {
   }
   return new Date();
 }
+
+export function isDocumentBlank(doc: Document): boolean {
+  const { lines } = doc.editor;
+  if (lines.length === 0) return true;
+  if (lines.length === 1 && lines[0].trim() === "") return true;
+  return lines.every((line) => line.trim() === "");
+}
+
+export function isContentBlank(content: string): boolean {
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n\n?([\s\S]*)$/);
+  if (!frontmatterMatch) {
+    return content.trim() === "";
+  }
+  const body = frontmatterMatch[1];
+  return body.trim() === "";
+}
