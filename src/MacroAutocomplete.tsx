@@ -3,7 +3,7 @@ import type { Macro } from "./macros";
 interface MacroAutocompleteProps {
   macros: Macro[];
   selectedIndex: number;
-  position: { top: number; left: number };
+  position: { top: number; left: number; showAbove?: boolean };
 }
 
 export function MacroAutocomplete({
@@ -22,6 +22,7 @@ export function MacroAutocomplete({
         position: "absolute",
         top: position.top,
         left: position.left,
+        transform: position.showAbove ? "translateY(-100%)" : undefined,
       }}
     >
       {macros.map((macro, index) => (

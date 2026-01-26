@@ -78,5 +78,6 @@ export function useMacroAutocomplete({
     matchingMacros,
     selectedIndex,
     handleKeyDown,
+    macroInputLength: macroInput?.length ?? 0,
   };
 }

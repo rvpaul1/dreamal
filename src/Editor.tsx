@@ -89,6 +89,7 @@ function Editor() {
     matchingMacros,
     selectedIndex: autocompleteIndex,
     handleKeyDown: handleMacroKeyDown,
+    macroInputLength,
   } = useMacroAutocomplete({
     lines,
     cursorLine: cursor.line,
@@ -369,11 +370,31 @@ function Editor() {
     const lineRect = lineEl.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
 
-    return {
-      top: lineRect.bottom - editorRect.top,
-      left: lineRect.left - editorRect.left,
-    };
-  }, [cursor.line]);
+    const triggerCol = cursor.col - macroInputLength;
+    const lineText = lines[cursor.line] || "";
+    const textBeforeTrigger = lineText.slice(0, triggerCol);
+
+    const measureSpan = window.document.createElement("span");
+    measureSpan.style.font = getComputedStyle(lineEl).font;
+    measureSpan.style.visibility = "hidden";
+    measureSpan.style.position = "absolute";
+    measureSpan.style.whiteSpace = "pre";
+    measureSpan.textContent = textBeforeTrigger;
+    window.document.body.appendChild(measureSpan);
+    const textWidth = measureSpan.getBoundingClientRect().width;
+    window.document.body.removeChild(measureSpan);
+
+    const left = lineRect.left - editorRect.left + textWidth;
+
+    const windowMidpoint = window.innerHeight / 2;
+    const isAboveEquator = lineRect.bottom < windowMidpoint;
+
+    const top = isAboveEquator
+      ? lineRect.bottom - editorRect.top
+      : lineRect.top - editorRect.top;
+
+    return { top, left, showAbove: !isAboveEquator };
+  }, [cursor.line, cursor.col, macroInputLength, lines]);
 
   return (
     <div
