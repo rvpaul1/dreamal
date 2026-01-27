@@ -9,11 +9,11 @@ import { useMarkdown } from "./useMarkdown";
 import { useMouseSelection } from "./useMouseSelection";
 import { useCursorBehavior } from "./useCursorBehavior";
 import { useBlockManipulation } from "./useBlockManipulation";
+import { useKeyboardHandling } from "./useKeyboardHandling";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
-import { isContentBlank, parseFromMDX, createDocument } from "./documentModel";
+import { isContentBlank, parseFromMDX } from "./documentModel";
 import type { Document } from "./documentModel";
-import { createInitialState } from "./editorActions";
 
 function Editor() {
   const {
@@ -136,16 +136,25 @@ function Editor() {
     [baseHandleMouseDown, markClickInput]
   );
 
-  const handlePasteEvent = useCallback(
-    (e: React.ClipboardEvent) => {
-      e.preventDefault();
-      const text = e.clipboardData.getData("text/plain");
-      if (text) {
-        handlePaste(text);
-      }
-    },
-    [handlePaste]
-  );
+  const { handleKeyDown, handlePasteEvent } = useKeyboardHandling({
+    cursor,
+    hasSelection,
+    selectedBlockRange,
+    handleEditorKeyDown,
+    handlePaste,
+    handleBlockDelete,
+    clearBlockSelection,
+    getInlineBlockEndingBefore,
+    getInlineBlockStartingAfter,
+    handleMacroKeyDown,
+    markKeyInput,
+    navigatePrev,
+    navigateNext,
+    hasPrev,
+    hasNext,
+    flushSave,
+    updateDocument,
+  });
 
   useEffect(() => {
     editorRef.current?.focus();
@@ -160,96 +169,6 @@ function Editor() {
       unlisten.then((fn) => fn());
     };
   }, [flushSave]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      markKeyInput();
-
-      if (e.metaKey && e.shiftKey && e.key === "[") {
-        e.preventDefault();
-        if (hasPrev) {
-          navigatePrev();
-        }
-        return;
-      }
-
-      if (e.metaKey && e.shiftKey && e.key === "]") {
-        e.preventDefault();
-        if (hasNext) {
-          navigateNext();
-        }
-        return;
-      }
-
-      if (e.metaKey && !e.shiftKey && e.key === "n") {
-        e.preventDefault();
-        flushSave();
-        updateDocument(createDocument(createInitialState()));
-        return;
-      }
-
-      if (selectedBlockRange) {
-        if (e.key === "Backspace" || e.key === "Delete") {
-          e.preventDefault();
-          handleBlockDelete(
-            selectedBlockRange.line,
-            selectedBlockRange.startCol,
-            selectedBlockRange.endCol
-          );
-          return;
-        }
-        if (
-          e.key === "Escape" ||
-          e.key === "ArrowLeft" ||
-          e.key === "ArrowRight" ||
-          e.key === "ArrowUp" ||
-          e.key === "ArrowDown"
-        ) {
-          clearBlockSelection();
-        }
-      }
-
-      if (e.key === "Backspace" && !hasSelection) {
-        const blockBefore = getInlineBlockEndingBefore(cursor.line, cursor.col);
-        if (blockBefore) {
-          e.preventDefault();
-          handleBlockDelete(cursor.line, blockBefore.startCol, blockBefore.endCol);
-          return;
-        }
-      }
-
-      if (e.key === "Delete" && !hasSelection) {
-        const blockAfter = getInlineBlockStartingAfter(cursor.line, cursor.col);
-        if (blockAfter) {
-          e.preventDefault();
-          handleBlockDelete(cursor.line, blockAfter.startCol, blockAfter.endCol);
-          return;
-        }
-      }
-
-      if (handleMacroKeyDown(e)) {
-        return;
-      }
-
-      handleEditorKeyDown(e);
-    },
-    [
-      markKeyInput,
-      handleEditorKeyDown,
-      navigatePrev,
-      navigateNext,
-      hasPrev,
-      hasNext,
-      handleMacroKeyDown,
-      selectedBlockRange,
-      handleBlockDelete,
-      clearBlockSelection,
-      cursor,
-      hasSelection,
-      getInlineBlockEndingBefore,
-      getInlineBlockStartingAfter,
-    ]
-  );
 
   const getAutocompletePosition = useCallback(() => {
     const lineEl = lineRefs.current.get(cursor.line);
