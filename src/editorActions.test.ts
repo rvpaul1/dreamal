@@ -6,6 +6,7 @@ import {
   posBefore,
   getSelectionBounds,
   hasSelection,
+  getSelectedText,
   deleteSelection,
   moveCursorLeft,
   moveCursorRight,
@@ -97,6 +98,39 @@ describe("Position Utilities", () => {
 
     it("returns true when anchor differs from cursor", () => {
       expect(hasSelection(state(["hello"], cursor(0, 3), cursor(0, 0)))).toBe(true);
+    });
+  });
+
+  describe("getSelectedText", () => {
+    it("returns empty string when no selection", () => {
+      expect(getSelectedText(state(["hello"], cursor(0, 0), null))).toBe("");
+    });
+
+    it("returns empty string when anchor equals cursor", () => {
+      expect(getSelectedText(state(["hello"], cursor(0, 2), cursor(0, 2)))).toBe("");
+    });
+
+    it("returns selected text on single line (cursor after anchor)", () => {
+      expect(getSelectedText(state(["hello world"], cursor(0, 5), cursor(0, 0)))).toBe("hello");
+    });
+
+    it("returns selected text on single line (cursor before anchor)", () => {
+      expect(getSelectedText(state(["hello world"], cursor(0, 0), cursor(0, 5)))).toBe("hello");
+    });
+
+    it("returns selected text spanning multiple lines", () => {
+      const s = state(["hello", "world", "foo"], cursor(2, 3), cursor(0, 2));
+      expect(getSelectedText(s)).toBe("llo\nworld\nfoo");
+    });
+
+    it("returns selected text spanning multiple lines (reverse selection)", () => {
+      const s = state(["hello", "world", "foo"], cursor(0, 2), cursor(2, 3));
+      expect(getSelectedText(s)).toBe("llo\nworld\nfoo");
+    });
+
+    it("returns selected text spanning two adjacent lines", () => {
+      const s = state(["hello", "world"], cursor(1, 3), cursor(0, 3));
+      expect(getSelectedText(s)).toBe("lo\nwor");
     });
   });
 });

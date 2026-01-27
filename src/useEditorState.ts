@@ -3,6 +3,7 @@ import {
   type EditorState,
   type CursorPosition,
   hasSelection as checkHasSelection,
+  getSelectedText,
   moveCursorLeft,
   moveCursorRight,
   moveCursorUp,
@@ -207,6 +208,10 @@ export function useEditorState() {
     [updateEditor]
   );
 
+  const handleCopy = useCallback((): string => {
+    return getSelectedText(document.editor);
+  }, [document.editor]);
+
   return {
     document,
     lines: document.editor.lines,
@@ -217,6 +222,7 @@ export function useEditorState() {
     handleClickAt,
     handleDragTo,
     handlePaste,
+    handleCopy,
     updateDocument,
     updateMetadata,
     applyMacro,

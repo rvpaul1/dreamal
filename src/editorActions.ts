@@ -31,6 +31,25 @@ export function hasSelection(state: EditorState): boolean {
   return state.selectionAnchor !== null && !posEqual(state.selectionAnchor, state.cursor);
 }
 
+export function getSelectedText(state: EditorState): string {
+  if (!hasSelection(state) || !state.selectionAnchor) {
+    return "";
+  }
+  const { start, end } = getSelectionBounds(state.selectionAnchor, state.cursor);
+
+  if (start.line === end.line) {
+    return state.lines[start.line].slice(start.col, end.col);
+  }
+
+  const lines: string[] = [];
+  lines.push(state.lines[start.line].slice(start.col));
+  for (let i = start.line + 1; i < end.line; i++) {
+    lines.push(state.lines[i]);
+  }
+  lines.push(state.lines[end.line].slice(0, end.col));
+  return lines.join("\n");
+}
+
 export function deleteSelection(state: EditorState): EditorState {
   if (!state.selectionAnchor) {
     return state;

@@ -10,6 +10,7 @@ interface UseKeyboardHandlingProps {
   selectedBlockRange: SelectedBlockRange | null;
   handleEditorKeyDown: (e: React.KeyboardEvent) => void;
   handlePaste: (text: string) => void;
+  handleCopy: () => string;
   handleBlockDelete: (lineIndex: number, startCol: number, endCol: number) => void;
   clearBlockSelection: () => void;
   getInlineBlockEndingBefore: (line: number, col: number) => { startCol: number; endCol: number } | null;
@@ -30,6 +31,7 @@ export function useKeyboardHandling({
   selectedBlockRange,
   handleEditorKeyDown,
   handlePaste,
+  handleCopy,
   handleBlockDelete,
   clearBlockSelection,
   getInlineBlockEndingBefore,
@@ -146,8 +148,20 @@ export function useKeyboardHandling({
     [handlePaste]
   );
 
+  const handleCopyEvent = useCallback(
+    (e: React.ClipboardEvent) => {
+      const text = handleCopy();
+      if (text) {
+        e.preventDefault();
+        e.clipboardData.setData("text/plain", text);
+      }
+    },
+    [handleCopy]
+  );
+
   return {
     handleKeyDown,
     handlePasteEvent,
+    handleCopyEvent,
   };
 }

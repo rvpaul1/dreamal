@@ -26,6 +26,7 @@ function Editor() {
     handleClickAt,
     handleDragTo,
     handlePaste,
+    handleCopy,
     updateDocument,
     updateMetadata,
     applyMacro,
@@ -138,12 +139,13 @@ function Editor() {
     [baseHandleMouseDown, markClickInput]
   );
 
-  const { handleKeyDown, handlePasteEvent } = useKeyboardHandling({
+  const { handleKeyDown, handlePasteEvent, handleCopyEvent } = useKeyboardHandling({
     cursor,
     hasSelection,
     selectedBlockRange,
     handleEditorKeyDown,
     handlePaste,
+    handleCopy,
     handleBlockDelete,
     clearBlockSelection,
     getInlineBlockEndingBefore,
@@ -179,6 +181,7 @@ function Editor() {
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onPaste={handlePasteEvent}
+      onCopy={handleCopyEvent}
       onBlur={flushSave}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
