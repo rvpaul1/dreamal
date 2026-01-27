@@ -438,3 +438,131 @@ export function setCursorWithAnchor(
     selectionAnchor: { line: anchorLine, col: anchorCol },
   };
 }
+
+const BULLET_REGEX = /^(\t+)- /;
+const MAX_BULLET_INDENT = 5;
+
+export function getBulletInfo(line: string): { indentLevel: number; prefixLength: number } | null {
+  const match = line.match(BULLET_REGEX);
+  if (match) {
+    return {
+      indentLevel: match[1].length,
+      prefixLength: match[0].length,
+    };
+  }
+  return null;
+}
+
+export function isBulletLine(line: string): boolean {
+  return BULLET_REGEX.test(line);
+}
+
+export function insertCharacterWithBulletCheck(state: EditorState, char: string): EditorState {
+  let workingState = state;
+  if (hasSelection(state)) {
+    workingState = deleteSelection(state);
+  }
+
+  const { line, col } = workingState.cursor;
+  const currentLine = workingState.lines[line];
+
+  if (char === " ") {
+    const beforeCursor = currentLine.slice(0, col);
+    const potentialBulletMatch = beforeCursor.match(/^(\t*)-$/);
+    if (potentialBulletMatch) {
+      const existingTabs = potentialBulletMatch[1].length;
+      const indentLevel = Math.min(existingTabs + 1, MAX_BULLET_INDENT);
+      const afterCursor = currentLine.slice(col);
+      const newLineContent = "\t".repeat(indentLevel) + "- " + afterCursor;
+
+      const newLines = [...workingState.lines];
+      newLines[line] = newLineContent;
+
+      return {
+        lines: newLines,
+        cursor: { line, col: indentLevel + 2 },
+        selectionAnchor: null,
+      };
+    }
+  }
+
+  return insertCharacter(workingState, char);
+}
+
+export function insertNewlineWithBullet(state: EditorState): EditorState {
+  let workingState = state;
+  if (hasSelection(state)) {
+    workingState = deleteSelection(state);
+  }
+
+  const { line, col } = workingState.cursor;
+  const currentLine = workingState.lines[line];
+  const bulletInfo = getBulletInfo(currentLine);
+
+  if (!bulletInfo) {
+    return insertNewline(workingState);
+  }
+
+  const contentAfterPrefix = currentLine.slice(bulletInfo.prefixLength);
+  if (contentAfterPrefix.trim() === "" && col <= bulletInfo.prefixLength) {
+    const newLines = [...workingState.lines];
+    newLines[line] = "";
+    return {
+      lines: newLines,
+      cursor: { line, col: 0 },
+      selectionAnchor: null,
+    };
+  }
+
+  const before = currentLine.slice(0, col);
+  const after = currentLine.slice(col);
+  const bulletPrefix = "\t".repeat(bulletInfo.indentLevel) + "- ";
+
+  const newLines = [...workingState.lines];
+  newLines[line] = before;
+  newLines.splice(line + 1, 0, bulletPrefix + after);
+
+  return {
+    lines: newLines,
+    cursor: { line: line + 1, col: bulletPrefix.length },
+    selectionAnchor: null,
+  };
+}
+
+export function indentBullet(state: EditorState): EditorState {
+  const { line, col } = state.cursor;
+  const currentLine = state.lines[line];
+  const bulletInfo = getBulletInfo(currentLine);
+
+  if (!bulletInfo || bulletInfo.indentLevel >= MAX_BULLET_INDENT) {
+    return insertTab(state);
+  }
+
+  const newLines = [...state.lines];
+  newLines[line] = "\t" + currentLine;
+
+  return {
+    lines: newLines,
+    cursor: { line, col: col + 1 },
+    selectionAnchor: null,
+  };
+}
+
+export function outdentBullet(state: EditorState): EditorState {
+  const { line, col } = state.cursor;
+  const currentLine = state.lines[line];
+  const bulletInfo = getBulletInfo(currentLine);
+
+  if (!bulletInfo || bulletInfo.indentLevel <= 1) {
+    return state;
+  }
+
+  const newLines = [...state.lines];
+  newLines[line] = currentLine.slice(1);
+
+  return {
+    lines: newLines,
+    cursor: { line, col: Math.max(0, col - 1) },
+    selectionAnchor: null,
+  };
+}

@@ -14,13 +14,16 @@ import {
   backspace,
   deleteForward,
   insertTab,
-  insertNewline,
-  insertCharacter,
   createInitialState,
   swapLineUp,
   swapLineDown,
   setCursor,
   setCursorWithAnchor,
+  insertCharacterWithBulletCheck,
+  insertNewlineWithBullet,
+  indentBullet,
+  outdentBullet,
+  isBulletLine,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
@@ -118,18 +121,32 @@ export function useEditorState() {
           break;
         case "Tab":
           e.preventDefault();
-          updateEditor(insertTab);
+          if (isShift) {
+            updateEditor((s) => {
+              if (isBulletLine(s.lines[s.cursor.line])) {
+                return outdentBullet(s);
+              }
+              return s;
+            });
+          } else {
+            updateEditor((s) => {
+              if (isBulletLine(s.lines[s.cursor.line])) {
+                return indentBullet(s);
+              }
+              return insertTab(s);
+            });
+          }
           break;
         case "Enter":
           e.preventDefault();
-          updateEditor(insertNewline);
+          updateEditor(insertNewlineWithBullet);
           break;
         case "Shift":
           break;
         default:
           if (e.key.length === 1) {
             e.preventDefault();
-            updateEditor((s) => insertCharacter(s, e.key));
+            updateEditor((s) => insertCharacterWithBulletCheck(s, e.key));
           }
           break;
       }

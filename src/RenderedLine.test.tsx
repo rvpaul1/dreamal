@@ -19,6 +19,7 @@ describe("RenderedLine", () => {
     hasSelection: false,
     cursorVisible: true,
     headingInfo: null,
+    bulletInfo: null,
   };
 
   describe("text rendering", () => {

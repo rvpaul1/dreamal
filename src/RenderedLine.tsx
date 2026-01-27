@@ -2,6 +2,7 @@ import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorS
 import { parseLineSegments, type LineSegment, type InlineJSXBlock } from "./jsxBlocks";
 import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
+import type { BulletInfo } from "./useMarkdown";
 
 interface RenderedLineProps {
   lineText: string;
@@ -11,10 +12,15 @@ interface RenderedLineProps {
   hasSelection: boolean;
   cursorVisible: boolean;
   headingInfo: { level: number; prefixLength: number } | null;
+  bulletInfo: BulletInfo | null;
   onBlockSelect?: (startCol: number, endCol: number) => void;
   selectedBlockRange?: { startCol: number; endCol: number } | null;
   onBlockStateChange?: (startCol: number, endCol: number, newComponent: ParsedComponent) => void;
   onBlockDelete?: (startCol: number, endCol: number) => void;
+}
+
+function getBulletChar(indentLevel: number): string {
+  return indentLevel % 2 === 1 ? "●" : "○";
 }
 
 export function RenderedLine({
@@ -25,19 +31,33 @@ export function RenderedLine({
   hasSelection,
   cursorVisible,
   headingInfo,
+  bulletInfo,
   onBlockSelect,
   selectedBlockRange,
   onBlockStateChange,
   onBlockDelete,
 }: RenderedLineProps) {
   const isCursorLine = lineIndex === cursor.line;
-  const cursorInPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
-  const hidePrefix = headingInfo && !isCursorLine && !hasSelection;
-  const prefixLen = hidePrefix ? headingInfo.prefixLength : 0;
-  const displayText = hidePrefix ? lineText.slice(prefixLen) : lineText;
+  const cursorInHeadingPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
+  const cursorInBulletPrefix = isCursorLine && bulletInfo && cursor.col < bulletInfo.prefixLength;
+  const hideHeadingPrefix = headingInfo && !isCursorLine && !hasSelection;
+  const hideBulletPrefix = bulletInfo && !isCursorLine && !hasSelection;
+
+  let prefixLen = 0;
+  let displayText = lineText;
+
+  if (hideHeadingPrefix) {
+    prefixLen = headingInfo.prefixLength;
+    displayText = lineText.slice(prefixLen);
+  } else if (hideBulletPrefix) {
+    prefixLen = bulletInfo.prefixLength;
+    displayText = lineText.slice(prefixLen);
+  }
 
   const segments = parseLineSegments(displayText);
-  const adjustedCursorCol = cursorInPrefix ? cursor.col : cursor.col - prefixLen;
+  const adjustedCursorCol = (cursorInHeadingPrefix || cursorInBulletPrefix)
+    ? cursor.col
+    : cursor.col - prefixLen;
 
   const selectionInfo = hasSelection
     ? getSelectionInfo(lineIndex, lineText, selectionAnchor!, cursor)
@@ -45,6 +65,11 @@ export function RenderedLine({
 
   return (
     <>
+      {hideBulletPrefix && (
+        <span className={`bullet-marker bullet-level-${bulletInfo.indentLevel}`}>
+          {getBulletChar(bulletInfo.indentLevel)}
+        </span>
+      )}
       {segments.map((segment, idx) => (
         <SegmentRenderer
           key={idx}

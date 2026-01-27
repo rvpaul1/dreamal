@@ -5,6 +5,11 @@ export interface HeadingInfo {
   prefixLength: number;
 }
 
+export interface BulletInfo {
+  indentLevel: number;
+  prefixLength: number;
+}
+
 function getHeadingInfo(line: string): HeadingInfo | null {
   const match = line.match(/^(#{1,6}) /);
   if (match) {
@@ -16,10 +21,22 @@ function getHeadingInfo(line: string): HeadingInfo | null {
   return null;
 }
 
+function getBulletInfo(line: string): BulletInfo | null {
+  const match = line.match(/^(\t+)- /);
+  if (match) {
+    return {
+      indentLevel: match[1].length,
+      prefixLength: match[0].length,
+    };
+  }
+  return null;
+}
+
 export function useMarkdown(lines: string[]) {
   const lineInfo = useMemo(() => {
     return lines.map((line) => ({
       headingInfo: getHeadingInfo(line),
+      bulletInfo: getBulletInfo(line),
     }));
   }, [lines]);
 
@@ -35,8 +52,13 @@ export function useMarkdown(lines: string[]) {
     return lineInfo[lineIndex]?.headingInfo ?? null;
   };
 
+  const getBulletInfoForLine = (lineIndex: number): BulletInfo | null => {
+    return lineInfo[lineIndex]?.bulletInfo ?? null;
+  };
+
   return {
     getLineClass,
     getHeadingInfo: getHeadingInfoForLine,
+    getBulletInfo: getBulletInfoForLine,
   };
 }

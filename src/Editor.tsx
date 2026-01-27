@@ -97,7 +97,7 @@ function Editor() {
     onSelectMacro: applyMacro,
   });
 
-  const { getLineClass, getHeadingInfo } = useMarkdown(lines);
+  const { getLineClass, getHeadingInfo, getBulletInfo } = useMarkdown(lines);
 
   const getInlineBlockAt = useCallback(
     (line: number, col: number): { startCol: number; endCol: number } | null => {
@@ -431,6 +431,7 @@ function Editor() {
               hasSelection={hasSelection}
               cursorVisible={cursorVisible}
               headingInfo={getHeadingInfo(lineIndex)}
+              bulletInfo={getBulletInfo(lineIndex)}
               onBlockSelect={(startCol, endCol) =>
                 handleBlockSelect(lineIndex, startCol, endCol)
               }
