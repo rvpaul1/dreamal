@@ -14,6 +14,7 @@ import {
   backspace,
   deleteForward,
   insertTab,
+  insertText,
   createInitialState,
   swapLineUp,
   swapLineDown,
@@ -199,6 +200,13 @@ export function useEditorState() {
     [updateEditor]
   );
 
+  const handlePaste = useCallback(
+    (text: string) => {
+      updateEditor((s) => insertText(s, text));
+    },
+    [updateEditor]
+  );
+
   return {
     document,
     lines: document.editor.lines,
@@ -208,6 +216,7 @@ export function useEditorState() {
     handleKeyDown,
     handleClickAt,
     handleDragTo,
+    handlePaste,
     updateDocument,
     updateMetadata,
     applyMacro,

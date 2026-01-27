@@ -22,6 +22,7 @@ import {
   insertTab,
   insertNewline,
   insertCharacter,
+  insertText,
   createInitialState,
   swapLineUp,
   swapLineDown,
@@ -790,5 +791,73 @@ describe("Complex Scenarios", () => {
       expect(s.lines).toEqual(["A", "C"]);
       expect(s.cursor).toEqual(cursor(1, 0));
     });
+  });
+});
+
+describe("insertText", () => {
+  it("inserts single-line text at cursor", () => {
+    const result = insertText(state(["hello"], cursor(0, 5)), " world");
+    expect(result.lines).toEqual(["hello world"]);
+    expect(result.cursor).toEqual(cursor(0, 11));
+  });
+
+  it("inserts single-line text in middle of line", () => {
+    const result = insertText(state(["helloworld"], cursor(0, 5)), " ");
+    expect(result.lines).toEqual(["hello world"]);
+    expect(result.cursor).toEqual(cursor(0, 6));
+  });
+
+  it("inserts multi-line text", () => {
+    const result = insertText(state(["ab"], cursor(0, 1)), "X\nY\nZ");
+    expect(result.lines).toEqual(["aX", "Y", "Zb"]);
+    expect(result.cursor).toEqual(cursor(2, 1));
+  });
+
+  it("inserts two-line text", () => {
+    const result = insertText(state(["hello"], cursor(0, 5)), "\nworld");
+    expect(result.lines).toEqual(["hello", "world"]);
+    expect(result.cursor).toEqual(cursor(1, 5));
+  });
+
+  it("inserts at beginning of line", () => {
+    const result = insertText(state(["world"], cursor(0, 0)), "hello ");
+    expect(result.lines).toEqual(["hello world"]);
+    expect(result.cursor).toEqual(cursor(0, 6));
+  });
+
+  it("inserts multi-line at beginning", () => {
+    const result = insertText(state(["end"], cursor(0, 0)), "start\nmiddle\n");
+    expect(result.lines).toEqual(["start", "middle", "end"]);
+    expect(result.cursor).toEqual(cursor(2, 0));
+  });
+
+  it("replaces selection with single-line text", () => {
+    const result = insertText(state(["hello world"], cursor(0, 5), cursor(0, 0)), "hi");
+    expect(result.lines).toEqual(["hi world"]);
+    expect(result.cursor).toEqual(cursor(0, 2));
+  });
+
+  it("replaces selection with multi-line text", () => {
+    const result = insertText(state(["hello world"], cursor(0, 5), cursor(0, 0)), "a\nb\nc");
+    expect(result.lines).toEqual(["a", "b", "c world"]);
+    expect(result.cursor).toEqual(cursor(2, 1));
+  });
+
+  it("replaces multi-line selection", () => {
+    const result = insertText(state(["first", "second", "third"], cursor(2, 0), cursor(0, 0)), "X");
+    expect(result.lines).toEqual(["Xthird"]);
+    expect(result.cursor).toEqual(cursor(0, 1));
+  });
+
+  it("handles empty text", () => {
+    const result = insertText(state(["hello"], cursor(0, 5)), "");
+    expect(result.lines).toEqual(["hello"]);
+    expect(result.cursor).toEqual(cursor(0, 5));
+  });
+
+  it("inserts into empty document", () => {
+    const result = insertText(state([""], cursor(0, 0)), "hello\nworld");
+    expect(result.lines).toEqual(["hello", "world"]);
+    expect(result.cursor).toEqual(cursor(1, 5));
   });
 });

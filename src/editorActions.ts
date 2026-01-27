@@ -289,6 +289,44 @@ export function insertCharacter(state: EditorState, char: string): EditorState {
   };
 }
 
+export function insertText(state: EditorState, text: string): EditorState {
+  let workingState = state;
+  if (hasSelection(state)) {
+    workingState = deleteSelection(state);
+  }
+
+  const { line, col } = workingState.cursor;
+  const currentLine = workingState.lines[line];
+  const before = currentLine.slice(0, col);
+  const after = currentLine.slice(col);
+
+  const textLines = text.split("\n");
+
+  if (textLines.length === 1) {
+    const newLines = [...workingState.lines];
+    newLines[line] = before + text + after;
+    return {
+      lines: newLines,
+      cursor: { line, col: col + text.length },
+      selectionAnchor: null,
+    };
+  }
+
+  const newLines = [...workingState.lines];
+  newLines[line] = before + textLines[0];
+
+  const middleLines = textLines.slice(1, -1);
+  const lastTextLine = textLines[textLines.length - 1];
+
+  newLines.splice(line + 1, 0, ...middleLines, lastTextLine + after);
+
+  return {
+    lines: newLines,
+    cursor: { line: line + textLines.length - 1, col: lastTextLine.length },
+    selectionAnchor: null,
+  };
+}
+
 export function createInitialState(): EditorState {
   return {
     lines: [""],

@@ -34,6 +34,7 @@ function Editor() {
     handleKeyDown: handleEditorKeyDown,
     handleClickAt,
     handleDragTo,
+    handlePaste,
     updateDocument,
     updateMetadata,
     applyMacro,
@@ -215,6 +216,17 @@ function Editor() {
       baseHandleMouseDown(e);
     },
     [baseHandleMouseDown]
+  );
+
+  const handlePasteEvent = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault();
+      const text = e.clipboardData.getData("text/plain");
+      if (text) {
+        handlePaste(text);
+      }
+    },
+    [handlePaste]
   );
 
   useEffect(() => {
@@ -409,6 +421,7 @@ function Editor() {
       className="editor"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onPaste={handlePasteEvent}
       onBlur={flushSave}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
