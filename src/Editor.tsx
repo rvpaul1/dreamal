@@ -229,6 +229,13 @@ function Editor() {
   }, [cursor, lines]);
 
   useEffect(() => {
+    const lineEl = lineRefs.current.get(cursor.line);
+    if (lineEl) {
+      lineEl.scrollIntoView({ block: "nearest" });
+    }
+  }, [cursor.line]);
+
+  useEffect(() => {
     editorRef.current?.focus();
   }, []);
 
