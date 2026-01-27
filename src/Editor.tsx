@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { useEditorState } from "./useEditorState";
@@ -7,22 +7,13 @@ import { useEntryNavigation } from "./useEntryNavigation";
 import { useMacroAutocomplete } from "./useMacroAutocomplete";
 import { useMarkdown } from "./useMarkdown";
 import { useMouseSelection } from "./useMouseSelection";
+import { useCursorBehavior } from "./useCursorBehavior";
+import { useBlockManipulation } from "./useBlockManipulation";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
 import { isContentBlank, parseFromMDX, createDocument } from "./documentModel";
 import type { Document } from "./documentModel";
 import { createInitialState } from "./editorActions";
-import {
-  parseLineSegments,
-  serializeComponent,
-  type ParsedComponent,
-} from "./jsxBlocks";
-
-interface SelectedBlockRange {
-  line: number;
-  startCol: number;
-  endCol: number;
-}
 
 function Editor() {
   const {
@@ -42,10 +33,36 @@ function Editor() {
 
   const { saveState, flushSave, journalDir } = usePersistence(document, updateMetadata);
 
-  const [selectedBlockRange, setSelectedBlockRange] = useState<SelectedBlockRange | null>(null);
-  const prevCursorRef = useRef(cursor);
-  const lastInputWasClickRef = useRef(false);
   const hasCheckedInitialEntry = useRef(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  const {
+    cursorVisible,
+    getInlineBlockEndingBefore,
+    getInlineBlockStartingAfter,
+    markClickInput,
+    markKeyInput,
+  } = useCursorBehavior({
+    lines,
+    cursor,
+    document,
+    updateDocument,
+    lineRefs,
+  });
+
+  const {
+    selectedBlockRange,
+    handleBlockSelect,
+    handleBlockStateChange,
+    handleBlockDelete,
+    clearBlockSelection,
+  } = useBlockManipulation({
+    lines,
+    cursor,
+    document,
+    updateDocument,
+  });
 
   useEffect(() => {
     if (!journalDir || hasCheckedInitialEntry.current) return;
@@ -100,105 +117,6 @@ function Editor() {
 
   const { getLineClass, getHeadingInfo, getBulletInfo } = useMarkdown(lines);
 
-  const getInlineBlockAt = useCallback(
-    (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
-      if (!lineText) return null;
-
-      const segments = parseLineSegments(lineText);
-      for (const seg of segments) {
-        if (seg.type === "jsx" && col > seg.startCol && col < seg.endCol) {
-          return { startCol: seg.startCol, endCol: seg.endCol };
-        }
-      }
-      return null;
-    },
-    [lines]
-  );
-
-  const getInlineBlockEndingBefore = useCallback(
-    (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
-      if (!lineText) return null;
-
-      const segments = parseLineSegments(lineText);
-      for (const seg of segments) {
-        if (seg.type === "jsx" && seg.endCol === col) {
-          return { startCol: seg.startCol, endCol: seg.endCol };
-        }
-      }
-      return null;
-    },
-    [lines]
-  );
-
-  const getInlineBlockStartingAfter = useCallback(
-    (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
-      if (!lineText) return null;
-
-      const segments = parseLineSegments(lineText);
-      for (const seg of segments) {
-        if (seg.type === "jsx" && seg.startCol === col) {
-          return { startCol: seg.startCol, endCol: seg.endCol };
-        }
-      }
-      return null;
-    },
-    [lines]
-  );
-
-  const handleBlockSelect = useCallback((lineIndex: number, startCol: number, endCol: number) => {
-    setSelectedBlockRange({ line: lineIndex, startCol, endCol });
-  }, []);
-
-  const handleBlockStateChange = useCallback(
-    (lineIndex: number, startCol: number, endCol: number, newComponent: ParsedComponent) => {
-      const lineText = lines[lineIndex];
-      const newBlockStr = `{{{JSX:${serializeComponent(newComponent)}}}}`;
-      const newLineText =
-        lineText.slice(0, startCol) + newBlockStr + lineText.slice(endCol);
-
-      const newLines = [...lines];
-      newLines[lineIndex] = newLineText;
-
-      updateDocument({
-        ...document,
-        editor: {
-          ...document.editor,
-          lines: newLines,
-          cursor: { line: lineIndex, col: startCol + newBlockStr.length },
-        },
-      });
-    },
-    [document, lines, updateDocument]
-  );
-
-  const handleBlockDelete = useCallback(
-    (lineIndex: number, startCol: number, endCol: number) => {
-      const lineText = lines[lineIndex];
-      const newLineText = lineText.slice(0, startCol) + lineText.slice(endCol);
-
-      const newLines = [...lines];
-      newLines[lineIndex] = newLineText;
-
-      setSelectedBlockRange(null);
-      updateDocument({
-        ...document,
-        editor: {
-          ...document.editor,
-          lines: newLines,
-          cursor: { line: lineIndex, col: startCol },
-        },
-      });
-    },
-    [document, lines, updateDocument]
-  );
-
-  const [cursorVisible, setCursorVisible] = useState(true);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-
   const {
     handleMouseDown: baseHandleMouseDown,
     handleMouseMove,
@@ -212,10 +130,10 @@ function Editor() {
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      lastInputWasClickRef.current = true;
+      markClickInput();
       baseHandleMouseDown(e);
     },
-    [baseHandleMouseDown]
+    [baseHandleMouseDown, markClickInput]
   );
 
   const handlePasteEvent = useCallback(
@@ -228,24 +146,6 @@ function Editor() {
     },
     [handlePaste]
   );
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCursorVisible((v) => !v);
-    }, 530);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    setCursorVisible(true);
-  }, [cursor, lines]);
-
-  useEffect(() => {
-    const lineEl = lineRefs.current.get(cursor.line);
-    if (lineEl) {
-      lineEl.scrollIntoView({ block: "nearest" });
-    }
-  }, [cursor.line]);
 
   useEffect(() => {
     editorRef.current?.focus();
@@ -263,7 +163,7 @@ function Editor() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      lastInputWasClickRef.current = false;
+      markKeyInput();
 
       if (e.metaKey && e.shiftKey && e.key === "[") {
         e.preventDefault();
@@ -305,7 +205,7 @@ function Editor() {
           e.key === "ArrowUp" ||
           e.key === "ArrowDown"
         ) {
-          setSelectedBlockRange(null);
+          clearBlockSelection();
         }
       }
 
@@ -334,6 +234,7 @@ function Editor() {
       handleEditorKeyDown(e);
     },
     [
+      markKeyInput,
       handleEditorKeyDown,
       navigatePrev,
       navigateNext,
@@ -342,43 +243,13 @@ function Editor() {
       handleMacroKeyDown,
       selectedBlockRange,
       handleBlockDelete,
+      clearBlockSelection,
       cursor,
       hasSelection,
       getInlineBlockEndingBefore,
       getInlineBlockStartingAfter,
     ]
   );
-
-  useEffect(() => {
-    setSelectedBlockRange(null);
-  }, [cursor]);
-
-  useEffect(() => {
-    const block = getInlineBlockAt(cursor.line, cursor.col);
-    if (block) {
-      let newCol: number;
-
-      if (lastInputWasClickRef.current) {
-        newCol = block.startCol;
-      } else {
-        const prev = prevCursorRef.current;
-        const movingRight =
-          cursor.line > prev.line ||
-          (cursor.line === prev.line && cursor.col > prev.col);
-
-        newCol = movingRight ? block.endCol : block.startCol;
-      }
-
-      updateDocument({
-        ...document,
-        editor: {
-          ...document.editor,
-          cursor: { line: cursor.line, col: newCol },
-        },
-      });
-    }
-    prevCursorRef.current = cursor;
-  }, [cursor, getInlineBlockAt, document, updateDocument]);
 
   const getAutocompletePosition = useCallback(() => {
     const lineEl = lineRefs.current.get(cursor.line);
