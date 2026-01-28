@@ -62,6 +62,11 @@ export function useMouseSelection({
         return { line: targetLine, col: lines[targetLine]?.length ?? 0 };
       }
 
+      const rangeRect = range.getBoundingClientRect();
+      if (clientX > rangeRect.right + 4) {
+        return { line: targetLine, col: lines[targetLine]?.length ?? 0 };
+      }
+
       let col = 0;
       const walker = ownerDoc.createTreeWalker(lineEl, NodeFilter.SHOW_TEXT);
       let node: Text | null;
