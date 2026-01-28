@@ -1,6 +1,36 @@
 import { useRef, useCallback } from "react";
 import type { CursorPosition } from "./useEditorState";
 
+export function isWordChar(char: string): boolean {
+  return /[a-zA-Z0-9]/.test(char);
+}
+
+export function getWordBoundsAt(line: string, col: number): { start: number; end: number } | null {
+  if (col < 0 || col > line.length) return null;
+
+  const charAtCol = line[col];
+  const charBeforeCol = col > 0 ? line[col - 1] : undefined;
+
+  const touchingWord = (charAtCol && isWordChar(charAtCol)) || (charBeforeCol && isWordChar(charBeforeCol));
+  if (!touchingWord) return null;
+
+  let start = col;
+  let end = col;
+
+  if (charAtCol && isWordChar(charAtCol)) {
+    while (start > 0 && isWordChar(line[start - 1])) start--;
+    while (end < line.length && isWordChar(line[end])) end++;
+  } else {
+    while (start > 0 && isWordChar(line[start - 1])) start--;
+    end = col;
+    while (end > start && !isWordChar(line[end - 1])) end--;
+    end = start;
+    while (end < line.length && isWordChar(line[end])) end++;
+  }
+
+  return { start, end };
+}
+
 interface UseMouseSelectionOptions {
   lines: string[];
   lineRefs: React.RefObject<Map<number, HTMLDivElement>>;
@@ -87,12 +117,24 @@ export function useMouseSelection({
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
       const pos = getPositionFromPoint(e.clientX, e.clientY);
-      if (pos) {
-        dragAnchorRef.current = pos;
-        onClickAt(pos);
+      if (!pos) return;
+
+      if (e.detail === 2) {
+        const line = lines[pos.line];
+        const bounds = getWordBoundsAt(line, pos.col);
+        if (bounds) {
+          const anchor = { line: pos.line, col: bounds.start };
+          const cursor = { line: pos.line, col: bounds.end };
+          dragAnchorRef.current = anchor;
+          onDragTo(cursor, anchor);
+          return;
+        }
       }
+
+      dragAnchorRef.current = pos;
+      onClickAt(pos);
     },
-    [getPositionFromPoint, onClickAt]
+    [getPositionFromPoint, onClickAt, onDragTo, lines]
   );
 
   const handleMouseMove = useCallback(
