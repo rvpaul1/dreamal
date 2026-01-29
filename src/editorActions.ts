@@ -623,3 +623,167 @@ export function outdentBullet(state: EditorState): EditorState {
     selectionAnchor: null,
   };
 }
+
+const HEADING_REGEX = /^(#{1,6}) /;
+
+export function getHeadingLevel(line: string): number {
+  const match = line.match(HEADING_REGEX);
+  if (match) {
+    return match[1].length;
+  }
+  return Infinity;
+}
+
+export function isHeadingLine(line: string): boolean {
+  return HEADING_REGEX.test(line);
+}
+
+export function getHiddenLines(state: EditorState, cursorLine: number): Set<number> {
+  const hidden = new Set<number>();
+  const lines = state.lines;
+  const cursorLevel = getHeadingLevel(lines[cursorLine]);
+
+  if (cursorLevel === Infinity) {
+    return hidden;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    if (i === cursorLine) continue;
+    const level = getHeadingLevel(lines[i]);
+    if (level > cursorLevel) {
+      hidden.add(i);
+    }
+  }
+
+  return hidden;
+}
+
+function getHeadingSectionRange(
+  lines: string[],
+  headingLine: number
+): { start: number; end: number } {
+  const headingLevel = getHeadingLevel(lines[headingLine]);
+  if (headingLevel === Infinity) {
+    return { start: headingLine, end: headingLine };
+  }
+
+  let end = headingLine;
+  for (let i = headingLine + 1; i < lines.length; i++) {
+    const level = getHeadingLevel(lines[i]);
+    if (level <= headingLevel) {
+      break;
+    }
+    end = i;
+  }
+
+  return { start: headingLine, end };
+}
+
+function findPreviousVisibleLine(
+  fromLine: number,
+  hiddenLines: Set<number>
+): number {
+  for (let i = fromLine - 1; i >= 0; i--) {
+    if (!hiddenLines.has(i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findNextVisibleLine(
+  lineCount: number,
+  fromLine: number,
+  hiddenLines: Set<number>
+): number {
+  for (let i = fromLine + 1; i < lineCount; i++) {
+    if (!hiddenLines.has(i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+export function swapHeadingSectionUp(
+  state: EditorState,
+  hiddenLines: Set<number>
+): EditorState {
+  const { line, col } = state.cursor;
+  const lines = state.lines;
+  const cursorLevel = getHeadingLevel(lines[line]);
+
+  if (cursorLevel === Infinity) {
+    return swapLineUp(state);
+  }
+
+  const prevVisible = findPreviousVisibleLine(line, hiddenLines);
+  if (prevVisible === -1) {
+    return state;
+  }
+
+  const currentSection = getHeadingSectionRange(lines, line);
+  const prevSection = getHeadingSectionRange(lines, prevVisible);
+
+  const currentLines = lines.slice(currentSection.start, currentSection.end + 1);
+  const prevLines = lines.slice(prevSection.start, prevSection.end + 1);
+
+  const newLines = [...lines];
+
+  newLines.splice(
+    prevSection.start,
+    currentSection.end - prevSection.start + 1,
+    ...currentLines,
+    ...prevLines
+  );
+
+  const newCursorLine = prevSection.start;
+  const newCol = Math.min(col, newLines[newCursorLine].length);
+
+  return {
+    lines: newLines,
+    cursor: { line: newCursorLine, col: newCol },
+    selectionAnchor: null,
+  };
+}
+
+export function swapHeadingSectionDown(
+  state: EditorState,
+  hiddenLines: Set<number>
+): EditorState {
+  const { line, col } = state.cursor;
+  const lines = state.lines;
+  const cursorLevel = getHeadingLevel(lines[line]);
+
+  if (cursorLevel === Infinity) {
+    return swapLineDown(state);
+  }
+
+  const currentSection = getHeadingSectionRange(lines, line);
+  const nextVisible = findNextVisibleLine(lines.length, currentSection.end, hiddenLines);
+  if (nextVisible === -1) {
+    return state;
+  }
+
+  const nextSection = getHeadingSectionRange(lines, nextVisible);
+
+  const currentLines = lines.slice(currentSection.start, currentSection.end + 1);
+  const nextLines = lines.slice(nextSection.start, nextSection.end + 1);
+
+  const newLines = [...lines];
+
+  newLines.splice(
+    currentSection.start,
+    nextSection.end - currentSection.start + 1,
+    ...nextLines,
+    ...currentLines
+  );
+
+  const newCursorLine = currentSection.start + nextLines.length;
+  const newCol = Math.min(col, newLines[newCursorLine].length);
+
+  return {
+    lines: newLines,
+    cursor: { line: newCursorLine, col: newCol },
+    selectionAnchor: null,
+  };
+}

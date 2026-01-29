@@ -27,6 +27,11 @@ import {
   createInitialState,
   swapLineUp,
   swapLineDown,
+  getHeadingLevel,
+  isHeadingLine,
+  getHiddenLines,
+  swapHeadingSectionUp,
+  swapHeadingSectionDown,
 } from "./editorActions";
 
 function state(
@@ -893,5 +898,189 @@ describe("insertText", () => {
     const result = insertText(state([""], cursor(0, 0)), "hello\nworld");
     expect(result.lines).toEqual(["hello", "world"]);
     expect(result.cursor).toEqual(cursor(1, 5));
+  });
+});
+
+describe("Heading Functions", () => {
+  describe("getHeadingLevel", () => {
+    it("returns level for h1-h6 headings", () => {
+      expect(getHeadingLevel("# Heading")).toBe(1);
+      expect(getHeadingLevel("## Heading")).toBe(2);
+      expect(getHeadingLevel("### Heading")).toBe(3);
+      expect(getHeadingLevel("#### Heading")).toBe(4);
+      expect(getHeadingLevel("##### Heading")).toBe(5);
+      expect(getHeadingLevel("###### Heading")).toBe(6);
+    });
+
+    it("returns Infinity for non-headings", () => {
+      expect(getHeadingLevel("Regular text")).toBe(Infinity);
+      expect(getHeadingLevel("")).toBe(Infinity);
+      expect(getHeadingLevel("#NoSpace")).toBe(Infinity);
+      expect(getHeadingLevel("####### Too many")).toBe(Infinity);
+    });
+  });
+
+  describe("isHeadingLine", () => {
+    it("returns true for valid headings", () => {
+      expect(isHeadingLine("# Heading")).toBe(true);
+      expect(isHeadingLine("## Heading")).toBe(true);
+    });
+
+    it("returns false for non-headings", () => {
+      expect(isHeadingLine("Regular text")).toBe(false);
+      expect(isHeadingLine("#NoSpace")).toBe(false);
+    });
+  });
+
+  describe("getHiddenLines", () => {
+    it("returns empty set when cursor not on heading", () => {
+      const s = state(["Regular text", "# Heading"], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0);
+      expect(hidden.size).toBe(0);
+    });
+
+    it("hides lines smaller than current heading level", () => {
+      const s = state([
+        "# Title",
+        "## Section A",
+        "content A",
+        "### Sub A",
+        "## Section B",
+        "content B",
+      ], cursor(1, 0));
+      const hidden = getHiddenLines(s, 1);
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(false);
+      expect(hidden.has(2)).toBe(true);
+      expect(hidden.has(3)).toBe(true);
+      expect(hidden.has(4)).toBe(false);
+      expect(hidden.has(5)).toBe(true);
+    });
+
+    it("hides all content and subheadings for level 1", () => {
+      const s = state([
+        "# Title",
+        "intro",
+        "## Section",
+        "content",
+      ], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0);
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(true);
+      expect(hidden.has(2)).toBe(true);
+      expect(hidden.has(3)).toBe(true);
+    });
+  });
+
+  describe("swapHeadingSectionUp", () => {
+    it("swaps entire section with previous sibling", () => {
+      const s = state([
+        "## Section A",
+        "content A",
+        "## Section B",
+        "content B",
+      ], cursor(2, 0));
+      const hidden = getHiddenLines(s, 2);
+      const result = swapHeadingSectionUp(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "content B",
+        "## Section A",
+        "content A",
+      ]);
+      expect(result.cursor.line).toBe(0);
+    });
+
+    it("does not move when at first position", () => {
+      const s = state([
+        "## Section A",
+        "content A",
+        "## Section B",
+      ], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0);
+      const result = swapHeadingSectionUp(s, hidden);
+      expect(result.lines).toEqual(s.lines);
+    });
+
+    it("includes subheadings in the swap", () => {
+      const s = state([
+        "## Section A",
+        "### Sub A1",
+        "## Section B",
+        "### Sub B1",
+      ], cursor(2, 0));
+      const hidden = getHiddenLines(s, 2);
+      const result = swapHeadingSectionUp(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "### Sub B1",
+        "## Section A",
+        "### Sub A1",
+      ]);
+    });
+
+    it("falls back to line swap for non-heading lines", () => {
+      const s = state(["line A", "line B"], cursor(1, 0));
+      const result = swapHeadingSectionUp(s, new Set());
+      expect(result.lines).toEqual(["line B", "line A"]);
+      expect(result.cursor.line).toBe(0);
+    });
+  });
+
+  describe("swapHeadingSectionDown", () => {
+    it("swaps entire section with next sibling", () => {
+      const s = state([
+        "## Section A",
+        "content A",
+        "## Section B",
+        "content B",
+      ], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0);
+      const result = swapHeadingSectionDown(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "content B",
+        "## Section A",
+        "content A",
+      ]);
+      expect(result.cursor.line).toBe(2);
+    });
+
+    it("does not move when at last position", () => {
+      const s = state([
+        "## Section A",
+        "## Section B",
+        "content B",
+      ], cursor(1, 0));
+      const hidden = getHiddenLines(s, 1);
+      const result = swapHeadingSectionDown(s, hidden);
+      expect(result.lines).toEqual(s.lines);
+    });
+
+    it("includes subheadings in the swap", () => {
+      const s = state([
+        "## Section A",
+        "### Sub A1",
+        "content",
+        "## Section B",
+        "### Sub B1",
+      ], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0);
+      const result = swapHeadingSectionDown(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "### Sub B1",
+        "## Section A",
+        "### Sub A1",
+        "content",
+      ]);
+    });
+
+    it("falls back to line swap for non-heading lines", () => {
+      const s = state(["line A", "line B"], cursor(0, 0));
+      const result = swapHeadingSectionDown(s, new Set());
+      expect(result.lines).toEqual(["line B", "line A"]);
+      expect(result.cursor.line).toBe(1);
+    });
   });
 });

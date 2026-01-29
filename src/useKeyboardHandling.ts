@@ -7,8 +7,9 @@ import type { SelectedBlockRange } from "./useBlockManipulation";
 interface UseKeyboardHandlingProps {
   cursor: CursorPosition;
   hasSelection: boolean;
+  hiddenLines: Set<number>;
   selectedBlockRange: SelectedBlockRange | null;
-  handleEditorKeyDown: (e: React.KeyboardEvent) => void;
+  handleEditorKeyDown: (e: React.KeyboardEvent, hiddenLines: Set<number>) => void;
   handlePaste: (text: string) => void;
   handleCopy: () => string;
   handleBlockDelete: (lineIndex: number, startCol: number, endCol: number) => void;
@@ -28,6 +29,7 @@ interface UseKeyboardHandlingProps {
 export function useKeyboardHandling({
   cursor,
   hasSelection,
+  hiddenLines,
   selectedBlockRange,
   handleEditorKeyDown,
   handlePaste,
@@ -115,11 +117,12 @@ export function useKeyboardHandling({
         return;
       }
 
-      handleEditorKeyDown(e);
+      handleEditorKeyDown(e, hiddenLines);
     },
     [
       markKeyInput,
       handleEditorKeyDown,
+      hiddenLines,
       navigatePrev,
       navigateNext,
       hasPrev,

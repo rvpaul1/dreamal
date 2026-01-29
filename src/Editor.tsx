@@ -22,7 +22,9 @@ function Editor() {
     cursor,
     selectionAnchor,
     hasSelection,
+    hiddenLines,
     handleKeyDown: handleEditorKeyDown,
+    handleKeyUp: handleEditorKeyUp,
     handleClickAt,
     handleDragTo,
     handlePaste,
@@ -142,6 +144,7 @@ function Editor() {
   const { handleKeyDown, handlePasteEvent, handleCopyEvent } = useKeyboardHandling({
     cursor,
     hasSelection,
+    hiddenLines,
     selectedBlockRange,
     handleEditorKeyDown,
     handlePaste,
@@ -164,6 +167,19 @@ function Editor() {
     editorRef.current?.focus();
   }, []);
 
+  const prevHiddenLinesRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const wasCollapsed = prevHiddenLinesRef.current.size > 0;
+    const isExpanded = hiddenLines.size === 0;
+    if (wasCollapsed && isExpanded) {
+      const lineEl = lineRefs.current.get(cursor.line);
+      if (lineEl) {
+        lineEl.scrollIntoView({ block: "center" });
+      }
+    }
+    prevHiddenLinesRef.current = hiddenLines;
+  }, [hiddenLines, cursor.line, lineRefs]);
+
   useEffect(() => {
     const unlisten = listen("tauri://close-requested", () => {
       flushSave();
@@ -180,6 +196,7 @@ function Editor() {
       className="editor"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onKeyUp={handleEditorKeyUp}
       onPaste={handlePasteEvent}
       onCopy={handleCopyEvent}
       onBlur={flushSave}
@@ -191,44 +208,49 @@ function Editor() {
         <div className="save-error">Save failed: {saveState.error}</div>
       )}
       <div className="editor-content">
-        {lines.map((lineText, lineIndex) => (
-          <div
-            key={lineIndex}
-            className={getLineClass(lineIndex)}
-            ref={(el) => {
-              if (el) {
-                lineRefs.current.set(lineIndex, el);
-              } else {
-                lineRefs.current.delete(lineIndex);
-              }
-            }}
-          >
-            <RenderedLine
-              lineText={lineText}
-              lineIndex={lineIndex}
-              cursor={cursor}
-              selectionAnchor={selectionAnchor}
-              hasSelection={hasSelection}
-              cursorVisible={cursorVisible}
-              headingInfo={getHeadingInfo(lineIndex)}
-              bulletInfo={getBulletInfo(lineIndex)}
-              onBlockSelect={(startCol, endCol) =>
-                handleBlockSelect(lineIndex, startCol, endCol)
-              }
-              selectedBlockRange={
-                selectedBlockRange?.line === lineIndex
-                  ? selectedBlockRange
-                  : null
-              }
-              onBlockStateChange={(startCol, endCol, newComponent) =>
-                handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
-              }
-              onBlockDelete={(startCol, endCol) =>
-                handleBlockDelete(lineIndex, startCol, endCol)
-              }
-            />
-          </div>
-        ))}
+        {lines.map((lineText, lineIndex) => {
+          if (hiddenLines.has(lineIndex)) {
+            return null;
+          }
+          return (
+            <div
+              key={lineIndex}
+              className={getLineClass(lineIndex)}
+              ref={(el) => {
+                if (el) {
+                  lineRefs.current.set(lineIndex, el);
+                } else {
+                  lineRefs.current.delete(lineIndex);
+                }
+              }}
+            >
+              <RenderedLine
+                lineText={lineText}
+                lineIndex={lineIndex}
+                cursor={cursor}
+                selectionAnchor={selectionAnchor}
+                hasSelection={hasSelection}
+                cursorVisible={cursorVisible}
+                headingInfo={getHeadingInfo(lineIndex)}
+                bulletInfo={getBulletInfo(lineIndex)}
+                onBlockSelect={(startCol, endCol) =>
+                  handleBlockSelect(lineIndex, startCol, endCol)
+                }
+                selectedBlockRange={
+                  selectedBlockRange?.line === lineIndex
+                    ? selectedBlockRange
+                    : null
+                }
+                onBlockStateChange={(startCol, endCol, newComponent) =>
+                  handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
+                }
+                onBlockDelete={(startCol, endCol) =>
+                  handleBlockDelete(lineIndex, startCol, endCol)
+                }
+              />
+            </div>
+          );
+        })}
       </div>
       {showAutocomplete && (
         <MacroAutocomplete

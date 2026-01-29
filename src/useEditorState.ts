@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   type EditorState,
   type CursorPosition,
@@ -17,8 +17,10 @@ import {
   insertTab,
   insertText,
   createInitialState,
-  swapLineUp,
-  swapLineDown,
+  swapHeadingSectionUp,
+  swapHeadingSectionDown,
+  getHiddenLines,
+  isHeadingLine,
   setCursor,
   setCursorWithAnchor,
   insertCharacterWithBulletCheck,
@@ -38,8 +40,18 @@ export function useEditorState() {
   const [document, setDocument] = useState<Document>(() =>
     createDocument(createInitialState())
   );
+  const [isOptionHeld, setIsOptionHeld] = useState(false);
 
   const hasSelection = checkHasSelection(document.editor);
+
+  const hiddenLines = useMemo(() => {
+    if (!isOptionHeld) return new Set<number>();
+    const cursorLine = document.editor.cursor.line;
+    if (!isHeadingLine(document.editor.lines[cursorLine])) {
+      return new Set<number>();
+    }
+    return getHiddenLines(document.editor, cursorLine);
+  }, [isOptionHeld, document.editor]);
 
   const updateEditor = useCallback(
     (updater: (state: EditorState) => EditorState) => {
@@ -52,16 +64,20 @@ export function useEditorState() {
   );
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent, currentHiddenLines: Set<number>) => {
+      if (e.key === "Alt") {
+        setIsOptionHeld(true);
+      }
+
       if (e.altKey && !e.shiftKey && !e.metaKey) {
         if (e.key === "ArrowUp") {
           e.preventDefault();
-          updateEditor(swapLineUp);
+          updateEditor((s) => swapHeadingSectionUp(s, currentHiddenLines));
           return;
         }
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          updateEditor(swapLineDown);
+          updateEditor((s) => swapHeadingSectionDown(s, currentHiddenLines));
           return;
         }
         return;
@@ -156,6 +172,12 @@ export function useEditorState() {
     [updateEditor]
   );
 
+  const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Alt") {
+      setIsOptionHeld(false);
+    }
+  }, []);
+
   const updateDocument = useCallback((doc: Document) => {
     setDocument(doc);
   }, []);
@@ -218,7 +240,9 @@ export function useEditorState() {
     cursor: document.editor.cursor,
     selectionAnchor: document.editor.selectionAnchor,
     hasSelection,
+    hiddenLines,
     handleKeyDown,
+    handleKeyUp,
     handleClickAt,
     handleDragTo,
     handlePaste,
