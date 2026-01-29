@@ -1083,4 +1083,122 @@ describe("Heading Functions", () => {
       expect(result.cursor.line).toBe(1);
     });
   });
+
+  describe("getHiddenLines with selection", () => {
+    it("uses smallest heading level in selection range", () => {
+      const s = state([
+        "# Title",
+        "## Section A",
+        "### Sub A",
+        "## Section B",
+      ], cursor(1, 0));
+      const hidden = getHiddenLines(s, 1, { start: 1, end: 3 });
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(false);
+      expect(hidden.has(2)).toBe(false);
+      expect(hidden.has(3)).toBe(false);
+    });
+
+    it("returns empty set when selection contains regular lines", () => {
+      const s = state([
+        "## Section A",
+        "content",
+        "## Section B",
+      ], cursor(0, 0));
+      const hidden = getHiddenLines(s, 0, { start: 0, end: 1 });
+      expect(hidden.size).toBe(0);
+    });
+
+    it("hides based on smallest heading in selection", () => {
+      const s = state([
+        "# Title",
+        "## Section A",
+        "## Section B",
+        "### Sub B",
+        "content",
+      ], cursor(1, 0));
+      const hidden = getHiddenLines(s, 1, { start: 1, end: 2 });
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(3)).toBe(true);
+      expect(hidden.has(4)).toBe(true);
+    });
+  });
+
+  describe("swapHeadingSectionUp with selection", () => {
+    it("swaps selected lines with previous line", () => {
+      const s = state([
+        "line 1",
+        "line 2",
+        "line 3",
+        "line 4",
+        "line 5",
+      ], cursor(3, 0), cursor(1, 0));
+      const result = swapHeadingSectionUp(s, new Set());
+      expect(result.lines).toEqual([
+        "line 2",
+        "line 3",
+        "line 4",
+        "line 1",
+        "line 5",
+      ]);
+      expect(result.cursor.line).toBe(2);
+      expect(result.selectionAnchor?.line).toBe(0);
+    });
+
+    it("swaps selection including hidden content", () => {
+      const s = state([
+        "## Section A",
+        "## Section B",
+        "content B",
+        "## Section C",
+      ], cursor(1, 0), cursor(1, 5));
+      const hidden = getHiddenLines(s, 1, { start: 1, end: 1 });
+      const result = swapHeadingSectionUp(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "content B",
+        "## Section A",
+        "## Section C",
+      ]);
+    });
+  });
+
+  describe("swapHeadingSectionDown with selection", () => {
+    it("swaps selected lines with next line", () => {
+      const s = state([
+        "line 1",
+        "line 2",
+        "line 3",
+        "line 4",
+        "line 5",
+      ], cursor(1, 0), cursor(3, 0));
+      const result = swapHeadingSectionDown(s, new Set());
+      expect(result.lines).toEqual([
+        "line 1",
+        "line 5",
+        "line 2",
+        "line 3",
+        "line 4",
+      ]);
+      expect(result.cursor.line).toBe(2);
+      expect(result.selectionAnchor?.line).toBe(4);
+    });
+
+    it("swaps selection including hidden content", () => {
+      const s = state([
+        "## Section A",
+        "content A",
+        "## Section B",
+        "## Section C",
+      ], cursor(0, 0), cursor(0, 5));
+      const hidden = getHiddenLines(s, 0, { start: 0, end: 0 });
+      const result = swapHeadingSectionDown(s, hidden);
+      expect(result.lines).toEqual([
+        "## Section B",
+        "## Section A",
+        "content A",
+        "## Section C",
+      ]);
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   type EditorState,
   type CursorPosition,
@@ -41,16 +41,52 @@ export function useEditorState() {
     createDocument(createInitialState())
   );
   const [isOptionHeld, setIsOptionHeld] = useState(false);
+  const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
+  const prevOptionHeldRef = useRef(false);
 
   const hasSelection = checkHasSelection(document.editor);
 
-  const hiddenLines = useMemo(() => {
-    if (!isOptionHeld) return new Set<number>();
-    const cursorLine = document.editor.cursor.line;
-    if (!isHeadingLine(document.editor.lines[cursorLine])) {
-      return new Set<number>();
+  useEffect(() => {
+    const wasOptionHeld = prevOptionHeldRef.current;
+    prevOptionHeldRef.current = isOptionHeld;
+
+    if (!isOptionHeld) {
+      if (wasOptionHeld) {
+        setHiddenLines(new Set());
+      }
+      return;
     }
-    return getHiddenLines(document.editor, cursorLine);
+
+    if (wasOptionHeld) {
+      return;
+    }
+
+    const { cursor, selectionAnchor, lines } = document.editor;
+    const cursorLine = cursor.line;
+
+    let selectionRange: { start: number; end: number } | undefined;
+    if (selectionAnchor) {
+      const startLine = Math.min(cursor.line, selectionAnchor.line);
+      const endLine = Math.max(cursor.line, selectionAnchor.line);
+      selectionRange = { start: startLine, end: endLine };
+    }
+
+    const rangeStart = selectionRange?.start ?? cursorLine;
+    const rangeEnd = selectionRange?.end ?? cursorLine;
+    let hasHeadingInRange = false;
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      if (isHeadingLine(lines[i])) {
+        hasHeadingInRange = true;
+        break;
+      }
+    }
+
+    if (!hasHeadingInRange) {
+      setHiddenLines(new Set());
+      return;
+    }
+
+    setHiddenLines(getHiddenLines(document.editor, cursorLine, selectionRange));
   }, [isOptionHeld, document.editor]);
 
   const updateEditor = useCallback(

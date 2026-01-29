@@ -638,19 +638,33 @@ export function isHeadingLine(line: string): boolean {
   return HEADING_REGEX.test(line);
 }
 
-export function getHiddenLines(state: EditorState, cursorLine: number): Set<number> {
+export function getHiddenLines(
+  state: EditorState,
+  cursorLine: number,
+  selectionRange?: { start: number; end: number }
+): Set<number> {
   const hidden = new Set<number>();
   const lines = state.lines;
-  const cursorLevel = getHeadingLevel(lines[cursorLine]);
 
-  if (cursorLevel === Infinity) {
+  const rangeStart = selectionRange?.start ?? cursorLine;
+  const rangeEnd = selectionRange?.end ?? cursorLine;
+
+  let smallestLevel = Infinity;
+  for (let i = rangeStart; i <= rangeEnd; i++) {
+    const level = getHeadingLevel(lines[i]);
+    if (level < smallestLevel) {
+      smallestLevel = level;
+    }
+  }
+
+  if (smallestLevel === Infinity) {
     return hidden;
   }
 
   for (let i = 0; i < lines.length; i++) {
-    if (i === cursorLine) continue;
+    if (i >= rangeStart && i <= rangeEnd) continue;
     const level = getHeadingLevel(lines[i]);
-    if (level > cursorLevel) {
+    if (level > smallestLevel) {
       hidden.add(i);
     }
   }
@@ -704,24 +718,57 @@ function findNextVisibleLine(
   return -1;
 }
 
+function getSelectionLineRange(state: EditorState): { start: number; end: number } | null {
+  if (!state.selectionAnchor) return null;
+  const { start, end } = getSelectionBounds(state.selectionAnchor, state.cursor);
+  return { start: start.line, end: end.line };
+}
+
+function expandRangeToIncludeHidden(
+  range: { start: number; end: number },
+  lines: string[],
+  hiddenLines: Set<number>
+): { start: number; end: number } {
+  let { start, end } = range;
+
+  for (let i = end + 1; i < lines.length; i++) {
+    if (hiddenLines.has(i)) {
+      end = i;
+    } else {
+      break;
+    }
+  }
+
+  return { start, end };
+}
+
 export function swapHeadingSectionUp(
   state: EditorState,
   hiddenLines: Set<number>
 ): EditorState {
   const { line, col } = state.cursor;
   const lines = state.lines;
-  const cursorLevel = getHeadingLevel(lines[line]);
 
-  if (cursorLevel === Infinity) {
-    return swapLineUp(state);
+  const selectionRange = getSelectionLineRange(state);
+  const hasSelection = selectionRange !== null;
+
+  if (!hasSelection) {
+    const cursorLevel = getHeadingLevel(lines[line]);
+    if (cursorLevel === Infinity) {
+      return swapLineUp(state);
+    }
   }
 
-  const prevVisible = findPreviousVisibleLine(line, hiddenLines);
+  const baseRange = selectionRange ?? { start: line, end: line };
+  const currentSection = hasSelection
+    ? expandRangeToIncludeHidden(baseRange, lines, hiddenLines)
+    : getHeadingSectionRange(lines, line);
+
+  const prevVisible = findPreviousVisibleLine(currentSection.start, hiddenLines);
   if (prevVisible === -1) {
     return state;
   }
 
-  const currentSection = getHeadingSectionRange(lines, line);
   const prevSection = getHeadingSectionRange(lines, prevVisible);
 
   const currentLines = lines.slice(currentSection.start, currentSection.end + 1);
@@ -736,13 +783,21 @@ export function swapHeadingSectionUp(
     ...prevLines
   );
 
-  const newCursorLine = prevSection.start;
+  const lineOffset = prevSection.start - currentSection.start;
+  const newCursorLine = line + lineOffset;
   const newCol = Math.min(col, newLines[newCursorLine].length);
+
+  let newAnchor: CursorPosition | null = null;
+  if (state.selectionAnchor) {
+    const anchorLine = state.selectionAnchor.line + lineOffset;
+    const anchorCol = Math.min(state.selectionAnchor.col, newLines[anchorLine].length);
+    newAnchor = { line: anchorLine, col: anchorCol };
+  }
 
   return {
     lines: newLines,
     cursor: { line: newCursorLine, col: newCol },
-    selectionAnchor: null,
+    selectionAnchor: newAnchor,
   };
 }
 
@@ -752,13 +807,22 @@ export function swapHeadingSectionDown(
 ): EditorState {
   const { line, col } = state.cursor;
   const lines = state.lines;
-  const cursorLevel = getHeadingLevel(lines[line]);
 
-  if (cursorLevel === Infinity) {
-    return swapLineDown(state);
+  const selectionRange = getSelectionLineRange(state);
+  const hasSelection = selectionRange !== null;
+
+  if (!hasSelection) {
+    const cursorLevel = getHeadingLevel(lines[line]);
+    if (cursorLevel === Infinity) {
+      return swapLineDown(state);
+    }
   }
 
-  const currentSection = getHeadingSectionRange(lines, line);
+  const baseRange = selectionRange ?? { start: line, end: line };
+  const currentSection = hasSelection
+    ? expandRangeToIncludeHidden(baseRange, lines, hiddenLines)
+    : getHeadingSectionRange(lines, line);
+
   const nextVisible = findNextVisibleLine(lines.length, currentSection.end, hiddenLines);
   if (nextVisible === -1) {
     return state;
@@ -778,12 +842,20 @@ export function swapHeadingSectionDown(
     ...currentLines
   );
 
-  const newCursorLine = currentSection.start + nextLines.length;
+  const lineOffset = nextSection.end - currentSection.end;
+  const newCursorLine = line + lineOffset;
   const newCol = Math.min(col, newLines[newCursorLine].length);
+
+  let newAnchor: CursorPosition | null = null;
+  if (state.selectionAnchor) {
+    const anchorLine = state.selectionAnchor.line + lineOffset;
+    const anchorCol = Math.min(state.selectionAnchor.col, newLines[anchorLine].length);
+    newAnchor = { line: anchorLine, col: anchorCol };
+  }
 
   return {
     lines: newLines,
     cursor: { line: newCursorLine, col: newCol },
-    selectionAnchor: null,
+    selectionAnchor: newAnchor,
   };
 }
