@@ -17,8 +17,6 @@ interface RenderedLineProps {
   selectedBlockRange?: { startCol: number; endCol: number } | null;
   onBlockStateChange?: (startCol: number, endCol: number, newComponent: ParsedComponent) => void;
   onBlockDelete?: (startCol: number, endCol: number) => void;
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
 }
 
 function getBulletChar(indentLevel: number): string {
@@ -38,8 +36,6 @@ export function RenderedLine({
   selectedBlockRange,
   onBlockStateChange,
   onBlockDelete,
-  isCollapsed,
-  onToggleCollapse,
 }: RenderedLineProps) {
   const isCursorLine = lineIndex === cursor.line;
   const cursorInHeadingPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
@@ -67,21 +63,8 @@ export function RenderedLine({
     ? getSelectionInfo(lineIndex, lineText, selectionAnchor!, cursor)
     : null;
 
-  const handleCollapseClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleCollapse?.();
-  };
-
   return (
     <>
-      {headingInfo && (
-        <span
-          className={`heading-collapse-arrow ${isCollapsed ? "collapsed" : ""}`}
-          onClick={handleCollapseClick}
-        >
-          {isCollapsed ? "▶" : "▼"}
-        </span>
-      )}
       {hideBulletPrefix && (
         <span className={`bullet-marker bullet-level-${bulletInfo.indentLevel}`}>
           {getBulletChar(bulletInfo.indentLevel)}

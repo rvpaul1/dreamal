@@ -15,7 +15,7 @@ html, body, #root {
   position: relative;
   width: 100%;
   height: 100%;
-  padding: 40px;
+  padding: 40px 40px 40px 10px;
   outline: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 18px;
@@ -39,20 +39,30 @@ html, body, #root {
 }
 
 .editor-line {
+  display: flex;
   min-height: 27px;
+}
+
+.line-gutter {
+  width: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: 0.1em;
+}
+
+.line-content {
+  flex: 1;
   white-space: pre-wrap;
   word-wrap: break-word;
   tab-size: 4;
 }
 
 .heading-collapse-arrow {
-  display: inline-block;
-  width: 1em;
-  margin-right: 0.25em;
   opacity: 0;
   cursor: pointer;
   user-select: none;
-  text-align: center;
   transition: opacity 0.1s;
 }
 

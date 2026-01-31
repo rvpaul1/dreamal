@@ -12,6 +12,7 @@ import { useBlockManipulation } from "./useBlockManipulation";
 import { useKeyboardHandling } from "./useKeyboardHandling";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
+import { LineGutter } from "./LineGutter";
 import { isContentBlank, parseFromMDX } from "./documentModel";
 import { getCollapsedHiddenLines } from "./editorActions";
 import type { Document } from "./documentModel";
@@ -228,6 +229,7 @@ function Editor() {
           if (allHiddenLines.has(lineIndex)) {
             return null;
           }
+          const headingInfo = getHeadingInfo(lineIndex);
           return (
             <div
               key={lineIndex}
@@ -240,32 +242,37 @@ function Editor() {
                 }
               }}
             >
-              <RenderedLine
-                lineText={lineText}
-                lineIndex={lineIndex}
-                cursor={cursor}
-                selectionAnchor={selectionAnchor}
-                hasSelection={hasSelection}
-                cursorVisible={cursorVisible}
-                headingInfo={getHeadingInfo(lineIndex)}
-                bulletInfo={getBulletInfo(lineIndex)}
-                onBlockSelect={(startCol, endCol) =>
-                  handleBlockSelect(lineIndex, startCol, endCol)
-                }
-                selectedBlockRange={
-                  selectedBlockRange?.line === lineIndex
-                    ? selectedBlockRange
-                    : null
-                }
-                onBlockStateChange={(startCol, endCol, newComponent) =>
-                  handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
-                }
-                onBlockDelete={(startCol, endCol) =>
-                  handleBlockDelete(lineIndex, startCol, endCol)
-                }
+              <LineGutter
+                headingInfo={headingInfo}
                 isCollapsed={collapsedHeadings.has(lineIndex)}
                 onToggleCollapse={() => toggleHeadingCollapse(lineIndex)}
               />
+              <div className="line-content">
+                <RenderedLine
+                  lineText={lineText}
+                  lineIndex={lineIndex}
+                  cursor={cursor}
+                  selectionAnchor={selectionAnchor}
+                  hasSelection={hasSelection}
+                  cursorVisible={cursorVisible}
+                  headingInfo={headingInfo}
+                  bulletInfo={getBulletInfo(lineIndex)}
+                  onBlockSelect={(startCol, endCol) =>
+                    handleBlockSelect(lineIndex, startCol, endCol)
+                  }
+                  selectedBlockRange={
+                    selectedBlockRange?.line === lineIndex
+                      ? selectedBlockRange
+                      : null
+                  }
+                  onBlockStateChange={(startCol, endCol, newComponent) =>
+                    handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
+                  }
+                  onBlockDelete={(startCol, endCol) =>
+                    handleBlockDelete(lineIndex, startCol, endCol)
+                  }
+                />
+              </div>
             </div>
           );
         })}
