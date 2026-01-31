@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { useEditorState } from "./useEditorState";
@@ -13,6 +13,7 @@ import { useKeyboardHandling } from "./useKeyboardHandling";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { RenderedLine } from "./RenderedLine";
 import { isContentBlank, parseFromMDX } from "./documentModel";
+import { getCollapsedHiddenLines } from "./editorActions";
 import type { Document } from "./documentModel";
 
 function Editor() {
@@ -23,6 +24,8 @@ function Editor() {
     selectionAnchor,
     hasSelection,
     hiddenLines,
+    collapsedHeadings,
+    toggleHeadingCollapse,
     handleKeyDown: handleEditorKeyDown,
     handleKeyUp: handleEditorKeyUp,
     handleClickAt,
@@ -122,6 +125,19 @@ function Editor() {
 
   const { getLineClass, getHeadingInfo, getBulletInfo } = useMarkdown(lines);
 
+  const collapsedHiddenLines = useMemo(
+    () => getCollapsedHiddenLines(lines, collapsedHeadings),
+    [lines, collapsedHeadings]
+  );
+
+  const allHiddenLines = useMemo(() => {
+    const merged = new Set(hiddenLines);
+    for (const line of collapsedHiddenLines) {
+      merged.add(line);
+    }
+    return merged;
+  }, [hiddenLines, collapsedHiddenLines]);
+
   const {
     handleMouseDown: baseHandleMouseDown,
     handleMouseMove,
@@ -209,7 +225,7 @@ function Editor() {
       )}
       <div className="editor-content">
         {lines.map((lineText, lineIndex) => {
-          if (hiddenLines.has(lineIndex)) {
+          if (allHiddenLines.has(lineIndex)) {
             return null;
           }
           return (
@@ -247,6 +263,8 @@ function Editor() {
                 onBlockDelete={(startCol, endCol) =>
                   handleBlockDelete(lineIndex, startCol, endCol)
                 }
+                isCollapsed={collapsedHeadings.has(lineIndex)}
+                onToggleCollapse={() => toggleHeadingCollapse(lineIndex)}
               />
             </div>
           );

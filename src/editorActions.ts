@@ -672,6 +672,29 @@ export function getHiddenLines(
   return hidden;
 }
 
+export function getCollapsedHiddenLines(
+  lines: string[],
+  collapsedHeadings: Set<number>
+): Set<number> {
+  const hidden = new Set<number>();
+
+  for (const headingLine of collapsedHeadings) {
+    if (headingLine >= lines.length) continue;
+    const headingLevel = getHeadingLevel(lines[headingLine]);
+    if (headingLevel === Infinity) continue;
+
+    for (let i = headingLine + 1; i < lines.length; i++) {
+      const level = getHeadingLevel(lines[i]);
+      if (level <= headingLevel) {
+        break;
+      }
+      hidden.add(i);
+    }
+  }
+
+  return hidden;
+}
+
 function getHeadingSectionRange(
   lines: string[],
   headingLine: number

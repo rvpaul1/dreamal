@@ -45,6 +45,26 @@ html, body, #root {
   tab-size: 4;
 }
 
+.heading-collapse-arrow {
+  display: inline-block;
+  width: 1em;
+  margin-right: 0.25em;
+  opacity: 0;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  transition: opacity 0.1s;
+}
+
+.editor-line:hover .heading-collapse-arrow,
+.heading-collapse-arrow:hover {
+  opacity: 0.6;
+}
+
+.heading-collapse-arrow:hover {
+  opacity: 1;
+}
+
 .cursor {
   display: inline-block;
   width: 2px;

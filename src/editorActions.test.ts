@@ -30,6 +30,7 @@ import {
   getHeadingLevel,
   isHeadingLine,
   getHiddenLines,
+  getCollapsedHiddenLines,
   swapHeadingSectionUp,
   swapHeadingSectionDown,
 } from "./editorActions";
@@ -1199,6 +1200,54 @@ describe("Heading Functions", () => {
         "content A",
         "## Section C",
       ]);
+    });
+  });
+
+  describe("getCollapsedHiddenLines", () => {
+    it("hides content under collapsed heading", () => {
+      const lines = [
+        "## Section A",
+        "content A",
+        "### Sub A",
+        "## Section B",
+      ];
+      const collapsed = new Set([0]);
+      const hidden = getCollapsedHiddenLines(lines, collapsed);
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(true);
+      expect(hidden.has(2)).toBe(true);
+      expect(hidden.has(3)).toBe(false);
+    });
+
+    it("handles multiple collapsed headings", () => {
+      const lines = [
+        "## Section A",
+        "content A",
+        "## Section B",
+        "content B",
+        "## Section C",
+      ];
+      const collapsed = new Set([0, 2]);
+      const hidden = getCollapsedHiddenLines(lines, collapsed);
+      expect(hidden.has(1)).toBe(true);
+      expect(hidden.has(3)).toBe(true);
+      expect(hidden.has(4)).toBe(false);
+    });
+
+    it("returns empty set when no headings collapsed", () => {
+      const lines = [
+        "## Section A",
+        "content A",
+      ];
+      const hidden = getCollapsedHiddenLines(lines, new Set());
+      expect(hidden.size).toBe(0);
+    });
+
+    it("ignores invalid line indices", () => {
+      const lines = ["## Section A", "content"];
+      const collapsed = new Set([100]);
+      const hidden = getCollapsedHiddenLines(lines, collapsed);
+      expect(hidden.size).toBe(0);
     });
   });
 });

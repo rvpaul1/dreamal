@@ -42,6 +42,7 @@ export function useEditorState() {
   );
   const [isOptionHeld, setIsOptionHeld] = useState(false);
   const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
+  const [collapsedHeadings, setCollapsedHeadings] = useState<Set<number>>(new Set());
   const prevOptionHeldRef = useRef(false);
 
   const hasSelection = checkHasSelection(document.editor);
@@ -270,6 +271,18 @@ export function useEditorState() {
     return getSelectedText(document.editor);
   }, [document.editor]);
 
+  const toggleHeadingCollapse = useCallback((lineIndex: number) => {
+    setCollapsedHeadings((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineIndex)) {
+        next.delete(lineIndex);
+      } else {
+        next.add(lineIndex);
+      }
+      return next;
+    });
+  }, []);
+
   return {
     document,
     lines: document.editor.lines,
@@ -277,6 +290,8 @@ export function useEditorState() {
     selectionAnchor: document.editor.selectionAnchor,
     hasSelection,
     hiddenLines,
+    collapsedHeadings,
+    toggleHeadingCollapse,
     handleKeyDown,
     handleKeyUp,
     handleClickAt,
