@@ -193,6 +193,18 @@ export function backspace(state: EditorState): EditorState {
   const { line, col } = state.cursor;
   const currentLine = state.lines[line];
 
+  const bulletInfo = getBulletInfo(currentLine);
+  if (bulletInfo && col > 0 && col <= bulletInfo.prefixLength) {
+    const newLine = currentLine.slice(bulletInfo.prefixLength);
+    const newLines = [...state.lines];
+    newLines[line] = newLine;
+    return {
+      lines: newLines,
+      cursor: { line, col: 0 },
+      selectionAnchor: null,
+    };
+  }
+
   if (col > 0) {
     const newLine = currentLine.slice(0, col - 1) + currentLine.slice(col);
     const newLines = [...state.lines];

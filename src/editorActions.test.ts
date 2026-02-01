@@ -552,6 +552,30 @@ describe("Text Deletion", () => {
       expect(result.lines).toEqual(["herld"]);
       expect(result.cursor).toEqual(cursor(0, 2));
     });
+
+    it("deletes bullet prefix when cursor is at start of bullet text", () => {
+      const result = backspace(state(["\t- hello"], cursor(0, 3)));
+      expect(result.lines).toEqual(["hello"]);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("deletes bullet prefix when cursor is inside prefix", () => {
+      const result = backspace(state(["\t- hello"], cursor(0, 1)));
+      expect(result.lines).toEqual(["hello"]);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("merges with previous line when at start of bullet line", () => {
+      const result = backspace(state(["above", "\t- hello"], cursor(1, 0)));
+      expect(result.lines).toEqual(["above\t- hello"]);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("deletes nested bullet prefix", () => {
+      const result = backspace(state(["\t\t- hello"], cursor(0, 4)));
+      expect(result.lines).toEqual(["hello"]);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
   });
 
   describe("deleteForward", () => {

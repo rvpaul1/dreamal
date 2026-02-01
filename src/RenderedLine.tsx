@@ -41,7 +41,7 @@ export function RenderedLine({
   const cursorInHeadingPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
   const cursorInBulletPrefix = isCursorLine && bulletInfo && cursor.col < bulletInfo.prefixLength;
   const hideHeadingPrefix = headingInfo && !isCursorLine && !hasSelection;
-  const hideBulletPrefix = bulletInfo && !isCursorLine && !hasSelection;
+  const hideBulletPrefix = bulletInfo && !hasSelection;
 
   let prefixLen = 0;
   let displayText = lineText;
@@ -55,9 +55,11 @@ export function RenderedLine({
   }
 
   const segments = parseLineSegments(displayText);
-  const adjustedCursorCol = (cursorInHeadingPrefix || cursorInBulletPrefix)
+  const adjustedCursorCol = cursorInHeadingPrefix
     ? cursor.col
-    : cursor.col - prefixLen;
+    : cursorInBulletPrefix
+      ? 0
+      : cursor.col - prefixLen;
 
   const selectionInfo = hasSelection
     ? getSelectionInfo(lineIndex, lineText, selectionAnchor!, cursor)
