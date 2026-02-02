@@ -18,6 +18,7 @@ import {
   moveCursorToDocEnd,
   setCursor,
   setCursorWithAnchor,
+  selectAll,
   backspace,
   deleteForward,
   insertTab,
@@ -514,6 +515,26 @@ describe("Cursor Movement", () => {
       );
       expect(result.cursor).toEqual(cursor(2, 4));
       expect(result.selectionAnchor).toEqual(cursor(0, 1));
+    });
+  });
+
+  describe("selectAll", () => {
+    it("selects entire single line document", () => {
+      const result = selectAll(state(["hello"], cursor(0, 2)));
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 0));
+    });
+
+    it("selects entire multi-line document", () => {
+      const result = selectAll(state(["first", "second", "third"], cursor(1, 2)));
+      expect(result.cursor).toEqual(cursor(2, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 0));
+    });
+
+    it("works with empty document", () => {
+      const result = selectAll(state([""], cursor(0, 0)));
+      expect(result.cursor).toEqual(cursor(0, 0));
+      expect(result.selectionAnchor).toEqual(cursor(0, 0));
     });
   });
 });

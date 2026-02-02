@@ -508,6 +508,16 @@ export function setCursorWithAnchor(
   };
 }
 
+export function selectAll(state: EditorState): EditorState {
+  const lastLine = state.lines.length - 1;
+  const lastCol = state.lines[lastLine].length;
+  return {
+    ...state,
+    cursor: { line: lastLine, col: lastCol },
+    selectionAnchor: { line: 0, col: 0 },
+  };
+}
+
 const BULLET_REGEX = /^(\t+)- /;
 const MAX_BULLET_INDENT = 5;
 

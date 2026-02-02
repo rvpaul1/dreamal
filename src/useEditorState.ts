@@ -23,6 +23,7 @@ import {
   isHeadingLine,
   setCursor,
   setCursorWithAnchor,
+  selectAll,
   insertCharacterWithBulletCheck,
   insertNewlineWithBullet,
   indentBullet,
@@ -123,6 +124,10 @@ export function useEditorState() {
       if (e.metaKey && !e.altKey && !e.ctrlKey) {
         const isShift = e.shiftKey;
         switch (e.key) {
+          case "a":
+            e.preventDefault();
+            updateEditor(selectAll);
+            return;
           case "ArrowLeft":
             e.preventDefault();
             updateEditor((s) => moveCursorToLineStart(s, isShift));
