@@ -72,22 +72,24 @@ export function RenderedLine({
           {getBulletChar(bulletInfo.indentLevel)}
         </span>
       )}
-      {segments.map((segment, idx) => (
-        <SegmentRenderer
-          key={idx}
-          segment={segment}
-          lineIndex={lineIndex}
-          isCursorLine={isCursorLine}
-          cursorCol={adjustedCursorCol}
-          cursorVisible={cursorVisible}
-          selectionInfo={selectionInfo}
-          onBlockSelect={onBlockSelect}
-          selectedBlockRange={selectedBlockRange}
-          onBlockStateChange={onBlockStateChange}
-          onBlockDelete={onBlockDelete}
-        />
-      ))}
-      {displayText.length === 0 && <span>{"\u200B"}</span>}
+      <span className="line-text">
+        {segments.map((segment, idx) => (
+          <SegmentRenderer
+            key={idx}
+            segment={segment}
+            lineIndex={lineIndex}
+            isCursorLine={isCursorLine}
+            cursorCol={adjustedCursorCol}
+            cursorVisible={cursorVisible}
+            selectionInfo={selectionInfo}
+            onBlockSelect={onBlockSelect}
+            selectedBlockRange={selectedBlockRange}
+            onBlockStateChange={onBlockStateChange}
+            onBlockDelete={onBlockDelete}
+          />
+        ))}
+        {displayText.length === 0 && <span>{"\u200B"}</span>}
+      </span>
     </>
   );
 }
