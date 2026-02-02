@@ -40,8 +40,8 @@ export function RenderedLine({
   const isCursorLine = lineIndex === cursor.line;
   const cursorInHeadingPrefix = isCursorLine && headingInfo && cursor.col < headingInfo.prefixLength;
   const cursorInBulletPrefix = isCursorLine && bulletInfo && cursor.col < bulletInfo.prefixLength;
-  const hideHeadingPrefix = headingInfo && !isCursorLine && !hasSelection;
-  const hideBulletPrefix = bulletInfo && !hasSelection;
+  const hideHeadingPrefix = headingInfo && !isCursorLine;
+  const hideBulletPrefix = !!bulletInfo;
 
   let prefixLen = 0;
   let displayText = lineText;

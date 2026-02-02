@@ -59,6 +59,10 @@ export function getCurrentMacroInput(
     return null;
   }
 
+  if (slashIndex > 0 && textBeforeCursor[slashIndex - 1] !== " ") {
+    return null;
+  }
+
   const candidate = textBeforeCursor.slice(slashIndex);
   if (candidate.includes(" ")) {
     return null;
