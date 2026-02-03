@@ -61,9 +61,17 @@ export function RenderedLine({
       ? 0
       : cursor.col - prefixLen;
 
-  const selectionInfo = hasSelection
+  const rawSelectionInfo = hasSelection
     ? getSelectionInfo(lineIndex, lineText, selectionAnchor!, cursor)
     : null;
+
+  const selectionInfo = rawSelectionInfo && prefixLen > 0
+    ? {
+        ...rawSelectionInfo,
+        selStart: Math.max(rawSelectionInfo.selStart - prefixLen, 0),
+        selEnd: Math.max(rawSelectionInfo.selEnd - prefixLen, 0),
+      }
+    : rawSelectionInfo;
 
   return (
     <>
