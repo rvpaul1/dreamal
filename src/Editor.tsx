@@ -146,6 +146,9 @@ function Editor() {
   } = useMouseSelection({
     lines,
     lineRefs,
+    currentCursorLine: cursor.line,
+    getBulletInfo,
+    getHeadingInfo,
     onClickAt: handleClickAt,
     onDragTo: handleDragTo,
   });

@@ -1,5 +1,6 @@
 import { useRef, useCallback } from "react";
 import type { CursorPosition } from "./useEditorState";
+import type { BulletInfo, HeadingInfo } from "./useMarkdown";
 
 export function isWordChar(char: string): boolean {
   return /[a-zA-Z0-9]/.test(char);
@@ -34,6 +35,9 @@ export function getWordBoundsAt(line: string, col: number): { start: number; end
 interface UseMouseSelectionOptions {
   lines: string[];
   lineRefs: React.RefObject<Map<number, HTMLDivElement>>;
+  currentCursorLine: number;
+  getBulletInfo: (lineIndex: number) => BulletInfo | null;
+  getHeadingInfo: (lineIndex: number) => HeadingInfo | null;
   onClickAt: (pos: CursorPosition) => void;
   onDragTo: (pos: CursorPosition, anchor: CursorPosition) => void;
 }
@@ -41,6 +45,9 @@ interface UseMouseSelectionOptions {
 export function useMouseSelection({
   lines,
   lineRefs,
+  currentCursorLine,
+  getBulletInfo,
+  getHeadingInfo,
   onClickAt,
   onDragTo,
 }: UseMouseSelectionOptions) {
@@ -82,8 +89,22 @@ export function useMouseSelection({
         return { line: targetLine, col: 0 };
       }
 
+      const bulletInfo = getBulletInfo(targetLine);
+      const headingInfo = getHeadingInfo(targetLine);
+      const hideBulletPrefix = !!bulletInfo;
+      const hideHeadingPrefix = headingInfo && currentCursorLine !== targetLine;
+
+      let prefixLen = 0;
+      if (hideHeadingPrefix) {
+        prefixLen = headingInfo.prefixLength;
+      } else if (hideBulletPrefix) {
+        prefixLen = bulletInfo.prefixLength;
+      }
+
+      const lineTextEl = lineEl.querySelector(".line-text");
       const ownerDoc = lineEl.ownerDocument;
       const range = ownerDoc.caretRangeFromPoint(clientX, clientY);
+
       if (!range || !lineEl.contains(range.startContainer)) {
         const rect = lineEl.getBoundingClientRect();
         if (clientX <= rect.left) {
@@ -97,8 +118,17 @@ export function useMouseSelection({
         return { line: targetLine, col: lines[targetLine]?.length ?? 0 };
       }
 
+      if (lineTextEl && !lineTextEl.contains(range.startContainer)) {
+        const lineTextRect = lineTextEl.getBoundingClientRect();
+        if (clientX < lineTextRect.left) {
+          return { line: targetLine, col: prefixLen };
+        }
+        return { line: targetLine, col: lines[targetLine]?.length ?? 0 };
+      }
+
+      const walkRoot = lineTextEl || lineEl;
       let col = 0;
-      const walker = ownerDoc.createTreeWalker(lineEl, NodeFilter.SHOW_TEXT);
+      const walker = ownerDoc.createTreeWalker(walkRoot, NodeFilter.SHOW_TEXT);
       let node: Text | null;
       while ((node = walker.nextNode() as Text | null)) {
         if (node === range.startContainer) {
@@ -108,9 +138,9 @@ export function useMouseSelection({
         col += node.textContent?.length ?? 0;
       }
 
-      return { line: targetLine, col };
+      return { line: targetLine, col: col + prefixLen };
     },
-    [lines, lineRefs]
+    [lines, lineRefs, currentCursorLine, getBulletInfo, getHeadingInfo]
   );
 
   const handleMouseDown = useCallback(
