@@ -1,3 +1,5 @@
+pub mod clone;
+
 use std::fs;
 use std::path::PathBuf;
 
@@ -5,6 +7,8 @@ use std::path::PathBuf;
 pub enum GitOpsError {
     HomeNotFound,
     IoError(std::io::Error),
+    GitError(String),
+    SessionExists(String),
 }
 
 impl std::fmt::Display for GitOpsError {
@@ -12,6 +16,8 @@ impl std::fmt::Display for GitOpsError {
         match self {
             GitOpsError::HomeNotFound => write!(f, "Could not determine home directory"),
             GitOpsError::IoError(e) => write!(f, "IO error: {}", e),
+            GitOpsError::GitError(msg) => write!(f, "Git error: {}", msg),
+            GitOpsError::SessionExists(id) => write!(f, "Session already exists: {}", id),
         }
     }
 }

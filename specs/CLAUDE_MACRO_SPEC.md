@@ -315,13 +315,13 @@ ClaudeStatusComponent shows "Click for PR" button
 
 ### Phase 1: Rust Git Infrastructure
 
-**Step 1.1: Set Up Git Operations Module**
+**Step 1.1: Set Up Git Operations Module** ✅
 - Add `git2` crate dependency
 - Create `src-tauri/src/git_ops/mod.rs` module structure
 - Implement helper to get temp checkouts base directory (`~/.dreamal/temp-checkouts/`)
 - Test: Directory is created if not exists
 
-**Step 1.2: Implement clone_to_temp**
+**Step 1.2: Implement clone_to_temp** ✅
 - Copy repository contents (including .git) to temp session directory
 - Verify the copy is a valid git repository
 - Test: Can copy a local repo, new copy has correct branch and history
