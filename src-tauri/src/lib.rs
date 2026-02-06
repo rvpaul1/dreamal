@@ -1,3 +1,4 @@
+mod claude_session;
 mod git_ops;
 
 use std::fs;
@@ -150,6 +151,12 @@ fn read_entry(filepath: String) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|_app| {
+            if let Err(e) = git_ops::cleanup::cleanup_orphaned_sessions() {
+                eprintln!("Warning: Failed to cleanup orphaned sessions: {}", e);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_journal_path,
             write_entry,

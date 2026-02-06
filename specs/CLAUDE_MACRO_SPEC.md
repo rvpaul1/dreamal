@@ -313,7 +313,7 @@ ClaudeStatusComponent shows "Click for PR" button
 
 ## Incremental Implementation Plan
 
-### Phase 1: Rust Git Infrastructure
+### Phase 1: Rust Git Infrastructure ✅
 
 **Step 1.1: Set Up Git Operations Module** ✅
 - Add `git2` crate dependency
@@ -326,30 +326,30 @@ ClaudeStatusComponent shows "Click for PR" button
 - Verify the copy is a valid git repository
 - Test: Can copy a local repo, new copy has correct branch and history
 
-**Step 1.3: Implement create_feature_branch**
+**Step 1.3: Implement create_feature_branch** ✅
 - Create a new branch with naming convention `claude/<description>-<timestamp>`
 - Check out the new branch
 - Test: Branch is created and checked out
 
-**Step 1.4: Implement commit_and_push**
+**Step 1.4: Implement commit_and_push** ✅
 - Stage all changes in working directory
 - Create commit with provided message
-- Push to origin
+- Push to origin (uses system SSH agent or credential helper)
 - Test: Changes are committed and pushed (use a test repo)
 
-**Step 1.5: Implement create_pull_request**
-- Add `octocrab` or `reqwest` for GitHub API
-- Extract owner/repo from remote URL
+**Step 1.5: Implement create_pull_request** ✅
+- Add `reqwest` for GitHub API
+- Extract owner/repo from remote URL (supports custom SSH host aliases like `git@alias.github.com`)
 - Create PR via GitHub API
-- Handle authentication (GitHub token from environment or config)
+- Handle authentication (`gh auth token` or `GITHUB_TOKEN` env var)
 - Test: PR is created on GitHub, URL is returned
 
-**Step 1.6: Implement cleanup_session**
+**Step 1.6: Implement cleanup_session** ✅
 - Remove session directory
 - Handle errors gracefully (directory already removed, etc.)
 - Test: Directory is removed after call
 
-**Step 1.7: Implement Startup Cleanup**
+**Step 1.7: Implement Startup Cleanup** ✅
 - On app startup, scan temp-checkouts directory
 - Remove any orphaned session directories
 - Test: Old directories are cleaned up on startup

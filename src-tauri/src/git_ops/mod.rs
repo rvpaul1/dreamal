@@ -1,4 +1,8 @@
+pub mod branch;
+pub mod cleanup;
 pub mod clone;
+pub mod commit;
+pub mod pr;
 
 use std::fs;
 use std::path::PathBuf;
@@ -9,6 +13,8 @@ pub enum GitOpsError {
     IoError(std::io::Error),
     GitError(String),
     SessionExists(String),
+    AuthError(String),
+    NetworkError(String),
 }
 
 impl std::fmt::Display for GitOpsError {
@@ -18,6 +24,8 @@ impl std::fmt::Display for GitOpsError {
             GitOpsError::IoError(e) => write!(f, "IO error: {}", e),
             GitOpsError::GitError(msg) => write!(f, "Git error: {}", msg),
             GitOpsError::SessionExists(id) => write!(f, "Session already exists: {}", id),
+            GitOpsError::AuthError(msg) => write!(f, "Authentication error: {}", msg),
+            GitOpsError::NetworkError(msg) => write!(f, "Network error: {}", msg),
         }
     }
 }
