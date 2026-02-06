@@ -354,7 +354,7 @@ ClaudeStatusComponent shows "Click for PR" button
 - Remove any orphaned session directories
 - Test: Old directories are cleaned up on startup
 
-### Phase 2: Headless Claude Integration
+### Phase 2: Headless Claude Integration ✅
 
 **Step 2.1: Create Session Manager** ✅
 - Implement in-memory session store (HashMap<String, Session>)
@@ -384,15 +384,16 @@ ClaudeStatusComponent shows "Click for PR" button
 - `run_full_session()` orchestrator function
 - Test: Full flow from completion to PR URL
 
-**Step 2.5: Implement Tauri Commands**
+**Step 2.5: Implement Tauri Commands** ✅
 - `spawn_claude_session`: orchestrates clone → branch → spawn
 - `get_session_status`: returns current session state
 - `cancel_session`: kills process, cleans up
+- `list_claude_sessions`: lists all sessions
 - Test: Commands are callable from frontend
 
 ### Phase 3: Frontend Components
 
-**Step 3.1: Create ClaudeStatusComponent**
+**Step 3.1: Create ClaudeStatusComponent** ✅
 - Create component with all status states
 - Add loading spinner for initializing/working states
 - Add clickable button for completed state (opens PR URL)
