@@ -1,10 +1,12 @@
+use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 
 #[derive(Debug)]
 pub enum ProcessError {
     SpawnFailed(String),
     IoError(std::io::Error),
+    ProcessFailed { exit_code: Option<i32>, stderr: String },
 }
 
 impl std::fmt::Display for ProcessError {
@@ -12,6 +14,9 @@ impl std::fmt::Display for ProcessError {
         match self {
             ProcessError::SpawnFailed(msg) => write!(f, "Failed to spawn Claude: {}", msg),
             ProcessError::IoError(e) => write!(f, "IO error: {}", e),
+            ProcessError::ProcessFailed { exit_code, stderr } => {
+                write!(f, "Claude process failed (exit code: {:?}): {}", exit_code, stderr)
+            }
         }
     }
 }
@@ -116,6 +121,57 @@ pub fn kill_process(process_id: u32) -> Result<(), ProcessError> {
     Ok(())
 }
 
+#[derive(Debug)]
+pub struct ProcessResult {
+    pub exit_status: ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+pub fn wait_for_process(mut child: Child) -> Result<ProcessResult, ProcessError> {
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    let stdout_content = if let Some(stdout) = stdout {
+        let reader = BufReader::new(stdout);
+        reader.lines().filter_map(|l| l.ok()).collect::<Vec<_>>().join("\n")
+    } else {
+        String::new()
+    };
+
+    let stderr_content = if let Some(stderr) = stderr {
+        let reader = BufReader::new(stderr);
+        reader.lines().filter_map(|l| l.ok()).collect::<Vec<_>>().join("\n")
+    } else {
+        String::new()
+    };
+
+    let exit_status = child.wait()?;
+
+    Ok(ProcessResult {
+        exit_status,
+        stdout: stdout_content,
+        stderr: stderr_content,
+    })
+}
+
+pub fn run_claude_and_wait(
+    work_dir: &Path,
+    instructions: &str,
+) -> Result<ProcessResult, ProcessError> {
+    let child = spawn_claude_process(work_dir, instructions)?;
+    let result = wait_for_process(child)?;
+
+    if !result.exit_status.success() {
+        return Err(ProcessError::ProcessFailed {
+            exit_code: result.exit_status.code(),
+            stderr: result.stderr.clone(),
+        });
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,5 +244,45 @@ mod tests {
         assert!(ALLOWED_COMMANDS.contains(&"npm run test"));
         assert!(ALLOWED_COMMANDS.contains(&"cargo test"));
         assert!(!ALLOWED_COMMANDS.contains(&"rm -rf /"));
+    }
+
+    #[test]
+    fn test_wait_for_process_success() {
+        let child = Command::new("echo")
+            .arg("hello")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let result = wait_for_process(child).unwrap();
+        assert!(result.exit_status.success());
+        assert!(result.stdout.contains("hello"));
+    }
+
+    #[test]
+    fn test_wait_for_process_failure() {
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg("exit 1")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let result = wait_for_process(child).unwrap();
+        assert!(!result.exit_status.success());
+    }
+
+    #[test]
+    fn test_process_result_struct() {
+        let result = ProcessResult {
+            exit_status: Command::new("true").status().unwrap(),
+            stdout: "output".to_string(),
+            stderr: "".to_string(),
+        };
+
+        assert!(result.exit_status.success());
+        assert_eq!(result.stdout, "output");
     }
 }
