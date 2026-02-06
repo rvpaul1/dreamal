@@ -356,15 +356,15 @@ ClaudeStatusComponent shows "Click for PR" button
 
 ### Phase 2: Headless Claude Integration
 
-**Step 2.1: Create Session Manager**
+**Step 2.1: Create Session Manager** ✅
 - Implement in-memory session store (HashMap<String, Session>)
 - Define Session struct with status, process handle, PR URL, etc.
 - Implement session state machine
 - Test: Can create, retrieve, update sessions
 
-**Step 2.2: Implement Claude Process Spawning**
+**Step 2.2: Implement Claude Process Spawning** ✅
 - Compose instructions from inputs
-- Build Claude CLI command with correct flags
+- Build Claude CLI command with correct flags (`--allowedTools`, `--allowedCommands`)
 - Spawn process with working directory set to temp checkout
 - Store process handle in session
 - Test: Claude process starts and runs
