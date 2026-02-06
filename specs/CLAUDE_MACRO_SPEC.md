@@ -369,10 +369,10 @@ ClaudeStatusComponent shows "Click for PR" button
 - Store process handle in session
 - Test: Claude process starts and runs
 
-**Step 2.3: Implement Process Monitoring**
+**Step 2.3: Implement Process Monitoring** ✅
 - Monitor Claude process stdout/stderr
-- Detect completion signal from Claude
-- Update session status accordingly
+- Detect completion signal from Claude (process exit)
+- `wait_for_process()` and `run_claude_and_wait()` functions
 - Test: Completion is detected, status updates
 
 **Step 2.4: Implement Post-Completion Git Flow**
