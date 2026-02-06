@@ -391,7 +391,7 @@ ClaudeStatusComponent shows "Click for PR" button
 - `list_claude_sessions`: lists all sessions
 - Test: Commands are callable from frontend
 
-### Phase 3: Frontend Components
+### Phase 3: Frontend Components ✅
 
 **Step 3.1: Create ClaudeStatusComponent** ✅
 - Create component with all status states
@@ -400,19 +400,20 @@ ClaudeStatusComponent shows "Click for PR" button
 - Add error display with retry button
 - Test: Component renders correctly for each status
 
-**Step 3.2: Create ClaudeDelegateModal**
+**Step 3.2: Create ClaudeDelegateModal** ✅
 - Create basic modal layout
 - Add git directory picker (Tauri file dialog)
 - Add toggle between inline/file instruction modes
 - Add textarea for inline mode
 - Add file picker for file mode
 - Add validation logic
+- Installed @tauri-apps/plugin-dialog
 - Test: Modal functions correctly, validation works
 
-**Step 3.3: Add Claude Delegation Block Type**
-- Define the block type in editor's type system
-- Add rendering logic (renders ClaudeStatusComponent)
-- Ensure block persists when saving/loading entries
+**Step 3.3: Add Claude Delegation Block Type** ✅
+- ClaudeStatus component registered in componentRegistry
+- Uses existing `{{{JSX:...}}}` block syntax
+- Persists as text in markdown (e.g., `{{{JSX:<ClaudeStatus sessionId="..." />}}}`)
 - Test: Block can be created, saved, and loaded
 
 ### Phase 4: Editor Integration
