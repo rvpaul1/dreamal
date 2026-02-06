@@ -4,6 +4,12 @@ mod git_ops;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::Arc;
+
+use claude_session::commands::{
+    cancel_session, get_session_status, list_claude_sessions, spawn_claude_session, AppState,
+};
+use claude_session::SessionManager;
 
 fn get_default_journal_dir() -> Result<PathBuf, String> {
     let home = dirs::document_dir()
@@ -149,8 +155,13 @@ fn read_entry(filepath: String) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let session_manager = Arc::new(SessionManager::new());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(AppState {
+            session_manager: session_manager.clone(),
+        })
         .setup(|_app| {
             if let Err(e) = git_ops::cleanup::cleanup_orphaned_sessions() {
                 eprintln!("Warning: Failed to cleanup orphaned sessions: {}", e);
@@ -162,7 +173,11 @@ pub fn run() {
             write_entry,
             ensure_journal_dir,
             list_entries,
-            read_entry
+            read_entry,
+            spawn_claude_session,
+            get_session_status,
+            cancel_session,
+            list_claude_sessions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

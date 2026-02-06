@@ -375,12 +375,13 @@ ClaudeStatusComponent shows "Click for PR" button
 - `wait_for_process()` and `run_claude_and_wait()` functions
 - Test: Completion is detected, status updates
 
-**Step 2.4: Implement Post-Completion Git Flow**
+**Step 2.4: Implement Post-Completion Git Flow** ✅
 - On Claude completion, trigger commit_and_push
 - Then trigger create_pull_request
 - Store PR URL in session
 - Trigger cleanup_session
 - Update status to 'completed'
+- `run_full_session()` orchestrator function
 - Test: Full flow from completion to PR URL
 
 **Step 2.5: Implement Tauri Commands**
