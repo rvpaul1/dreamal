@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod manager;
 pub mod orchestrator;
+pub mod persistence;
 pub mod process;
 pub mod types;
 

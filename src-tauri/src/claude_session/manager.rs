@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use super::persistence;
 use super::types::{Session, SessionInfo, SessionStatus};
 
 #[derive(Debug)]
@@ -63,10 +64,15 @@ impl SessionManager {
     pub fn get_session_info(&self, id: &str) -> Result<SessionInfo, SessionError> {
         let sessions = self.sessions.lock().map_err(|_| SessionError::LockError)?;
 
-        sessions
-            .get(id)
-            .map(|s| s.info.clone())
-            .ok_or_else(|| SessionError::NotFound(id.to_string()))
+        if let Some(session) = sessions.get(id) {
+            return Ok(session.info.clone());
+        }
+
+        if let Ok(Some(info)) = persistence::load_session_info(id) {
+            return Ok(info);
+        }
+
+        Err(SessionError::NotFound(id.to_string()))
     }
 
     pub fn set_working(&self, id: &str, process_id: u32) -> Result<(), SessionError> {
@@ -88,6 +94,7 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(id.to_string()))?;
 
         session.set_completed(pr_url);
+        let _ = persistence::save_session_info(&session.info);
         Ok(())
     }
 
@@ -99,6 +106,7 @@ impl SessionManager {
             .ok_or_else(|| SessionError::NotFound(id.to_string()))?;
 
         session.set_error(message);
+        let _ = persistence::save_session_info(&session.info);
         Ok(())
     }
 
