@@ -43,11 +43,17 @@ const statusConfig = {
     color: "#ef4444",
     borderColor: "rgba(239, 68, 68, 0.4)",
   },
+  not_found: {
+    label: "Session not found",
+    backgroundColor: "rgba(156, 163, 175, 0.2)",
+    color: "#9ca3af",
+    borderColor: "rgba(156, 163, 175, 0.4)",
+  },
 };
 
 export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -60,7 +66,6 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
         });
         if (mounted) {
           setSessionInfo(info);
-          setError(null);
 
           if (
             info.status === "completed" ||
@@ -72,9 +77,13 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
             }
           }
         }
-      } catch (e) {
+      } catch {
         if (mounted) {
-          setError(e instanceof Error ? e.message : String(e));
+          setNotFound(true);
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
         }
       }
     };
@@ -95,6 +104,32 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
       await openUrl(sessionInfo.pr_url);
     }
   };
+
+  if (notFound && sessionInfo?.status !== "completed") {
+    const config = statusConfig.not_found;
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "2px 10px",
+          fontSize: "0.8em",
+          fontWeight: 500,
+          lineHeight: "1.5",
+          backgroundColor: config.backgroundColor,
+          color: config.color,
+          border: `1px solid ${config.borderColor}`,
+          borderRadius: "4px",
+          verticalAlign: "middle",
+          cursor: "default",
+          transition: "all 0.2s ease",
+        }}
+      >
+        {config.label}
+      </span>
+    );
+  }
 
   const status: SessionStatus = sessionInfo?.status ?? "initializing";
   const config = statusConfig[status];
@@ -117,23 +152,6 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
     cursor: isClickable ? "pointer" : "default",
     transition: "all 0.2s ease",
   };
-
-  if (error) {
-    return (
-      <span
-        style={{
-          ...baseStyle,
-          backgroundColor: statusConfig.error.backgroundColor,
-          color: statusConfig.error.color,
-          borderColor: statusConfig.error.borderColor,
-        }}
-        title={error}
-      >
-        <ErrorIcon />
-        Error: {error.slice(0, 30)}...
-      </span>
-    );
-  }
 
   return (
     <span
