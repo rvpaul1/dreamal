@@ -30,6 +30,7 @@ import {
   swapLineDown,
   getHeadingLevel,
   isHeadingLine,
+  isCollapsedHeading,
   getHiddenLines,
   getCollapsedHiddenLines,
   swapHeadingSectionUp,
@@ -1293,6 +1294,59 @@ describe("Heading Functions", () => {
       const collapsed = new Set([100]);
       const hidden = getCollapsedHiddenLines(lines, collapsed);
       expect(hidden.size).toBe(0);
+    });
+  });
+
+  describe("isCollapsedHeading", () => {
+    it("returns true for collapsed heading", () => {
+      expect(isCollapsedHeading("^ ## Section A")).toBe(true);
+    });
+
+    it("returns false for normal heading", () => {
+      expect(isCollapsedHeading("## Section A")).toBe(false);
+    });
+
+    it("returns false for plain text", () => {
+      expect(isCollapsedHeading("just text")).toBe(false);
+    });
+
+    it("returns true for all heading levels", () => {
+      expect(isCollapsedHeading("^ # H1")).toBe(true);
+      expect(isCollapsedHeading("^ ### H3")).toBe(true);
+      expect(isCollapsedHeading("^ ###### H6")).toBe(true);
+    });
+  });
+
+  describe("getHeadingLevel with collapsed prefix", () => {
+    it("returns correct level for collapsed heading", () => {
+      expect(getHeadingLevel("^ ## Section")).toBe(2);
+    });
+
+    it("returns correct level for collapsed h1", () => {
+      expect(getHeadingLevel("^ # Title")).toBe(1);
+    });
+  });
+
+  describe("isHeadingLine with collapsed prefix", () => {
+    it("returns true for collapsed heading", () => {
+      expect(isHeadingLine("^ ## Section")).toBe(true);
+    });
+  });
+
+  describe("getCollapsedHiddenLines with ^ prefix", () => {
+    it("hides content under collapsed heading with ^ prefix", () => {
+      const lines = [
+        "^ ## Section A",
+        "content A",
+        "### Sub A",
+        "## Section B",
+      ];
+      const collapsed = new Set([0]);
+      const hidden = getCollapsedHiddenLines(lines, collapsed);
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(true);
+      expect(hidden.has(2)).toBe(true);
+      expect(hidden.has(3)).toBe(false);
     });
   });
 });

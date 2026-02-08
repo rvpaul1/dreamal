@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   type EditorState,
   type CursorPosition,
@@ -21,6 +21,7 @@ import {
   swapHeadingSectionDown,
   getHiddenLines,
   isHeadingLine,
+  isCollapsedHeading,
   setCursor,
   setCursorWithAnchor,
   selectAll,
@@ -43,7 +44,15 @@ export function useEditorState() {
   );
   const [isOptionHeld, setIsOptionHeld] = useState(false);
   const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
-  const [collapsedHeadings, setCollapsedHeadings] = useState<Set<number>>(new Set());
+  const collapsedHeadings = useMemo(() => {
+    const collapsed = new Set<number>();
+    for (let i = 0; i < document.editor.lines.length; i++) {
+      if (isCollapsedHeading(document.editor.lines[i])) {
+        collapsed.add(i);
+      }
+    }
+    return collapsed;
+  }, [document.editor.lines]);
   const prevOptionHeldRef = useRef(false);
 
   const hasSelection = checkHasSelection(document.editor);
@@ -279,16 +288,20 @@ export function useEditorState() {
   }, [document.editor]);
 
   const toggleHeadingCollapse = useCallback((lineIndex: number) => {
-    setCollapsedHeadings((prev) => {
-      const next = new Set(prev);
-      if (next.has(lineIndex)) {
-        next.delete(lineIndex);
+    updateEditor((state) => {
+      const line = state.lines[lineIndex];
+      if (!line) return state;
+      const newLines = [...state.lines];
+      if (isCollapsedHeading(line)) {
+        newLines[lineIndex] = line.slice(2);
+      } else if (isHeadingLine(line)) {
+        newLines[lineIndex] = "^ " + line;
       } else {
-        next.add(lineIndex);
+        return state;
       }
-      return next;
+      return { ...state, lines: newLines };
     });
-  }, []);
+  }, [updateEditor]);
 
   return {
     document,
