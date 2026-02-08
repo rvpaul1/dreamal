@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
@@ -23,6 +23,16 @@ export function ClaudeDelegateModal({
   const [baseBranch, setBaseBranch] = useState<string>("main");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    invoke<string | null>("get_setting", { key: "defaultGitDirectory" }).then(
+      (value) => {
+        if (value && !gitDirectory) {
+          setGitDirectory(value);
+        }
+      }
+    );
+  }, []);
 
   const handleSelectGitDirectory = async () => {
     try {
@@ -83,6 +93,10 @@ export function ClaudeDelegateModal({
         instructionsFileContent:
           instructionsMode === "file" ? instructionsFileContent : null,
         baseBranch,
+      });
+      await invoke("set_setting", {
+        key: "defaultGitDirectory",
+        value: gitDirectory,
       });
       onConfirm(sessionId);
     } catch (e) {
