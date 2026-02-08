@@ -16,6 +16,8 @@ interface SessionInfo {
 
 interface ClaudeStatusProps {
   sessionId: string;
+  prUrl?: string;
+  __onStateChange?: (props: Record<string, unknown>) => void;
 }
 
 const statusConfig = {
@@ -51,7 +53,7 @@ const statusConfig = {
   },
 };
 
-export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
+export function ClaudeStatus({ sessionId, prUrl, __onStateChange }: ClaudeStatusProps) {
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -66,6 +68,10 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
         });
         if (mounted) {
           setSessionInfo(info);
+
+          if (info.status === "completed" && info.pr_url && !prUrl) {
+            __onStateChange?.({ sessionId, prUrl: info.pr_url });
+          }
 
           if (
             info.status === "completed" ||
@@ -106,6 +112,34 @@ export function ClaudeStatus({ sessionId }: ClaudeStatusProps) {
   };
 
   if (notFound && sessionInfo?.status !== "completed") {
+    if (prUrl) {
+      const config = statusConfig.completed;
+      return (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "2px 10px",
+            fontSize: "0.8em",
+            fontWeight: 500,
+            lineHeight: "1.5",
+            backgroundColor: config.backgroundColor,
+            color: config.color,
+            border: `1px solid ${config.borderColor}`,
+            borderRadius: "4px",
+            verticalAlign: "middle",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+          onClick={async () => { await openUrl(prUrl); }}
+          title="Click to open PR"
+        >
+          <CheckIcon />
+          {config.label}
+        </span>
+      );
+    }
     const config = statusConfig.not_found;
     return (
       <span
