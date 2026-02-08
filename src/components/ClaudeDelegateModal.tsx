@@ -92,7 +92,7 @@ export function ClaudeDelegateModal({
   };
 
   return (
-    <div style={overlayStyle} onMouseDown={(e) => e.stopPropagation()}>
+    <div style={overlayStyle} onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <div style={modalStyle}>
         <h2 style={titleStyle}>Delegate to Claude</h2>
 
