@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::Command;
 
 use super::GitOpsError;
 
@@ -30,75 +31,17 @@ pub fn create_commit(repo_path: &Path, message: &str) -> Result<git2::Oid, GitOp
     Ok(commit_id)
 }
 
-fn get_credentials_callback(
-) -> impl FnMut(&str, Option<&str>, git2::CredentialType) -> Result<git2::Cred, git2::Error> {
-    let mut tried_ssh_agent = false;
-    let mut tried_ssh_key = false;
-
-    move |url: &str, username: Option<&str>, allowed_types: git2::CredentialType| {
-        let username = username.unwrap_or("git");
-
-        if allowed_types.contains(git2::CredentialType::SSH_KEY) && !tried_ssh_agent {
-            tried_ssh_agent = true;
-            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username) {
-                return Ok(cred);
-            }
-        }
-
-        if allowed_types.contains(git2::CredentialType::SSH_KEY) && !tried_ssh_key {
-            tried_ssh_key = true;
-            let home = dirs::home_dir().ok_or_else(|| {
-                git2::Error::from_str("Could not find home directory")
-            })?;
-
-            let key_paths = [
-                home.join(".ssh/id_ed25519"),
-                home.join(".ssh/id_rsa"),
-            ];
-
-            for key_path in &key_paths {
-                if key_path.exists() {
-                    if let Ok(cred) = git2::Cred::ssh_key(username, None, key_path, None) {
-                        return Ok(cred);
-                    }
-                }
-            }
-        }
-
-        if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
-            if let Ok(cred) = git2::Cred::credential_helper(
-                &git2::Config::open_default()?,
-                url,
-                Some(username),
-            ) {
-                return Ok(cred);
-            }
-        }
-
-        if allowed_types.contains(git2::CredentialType::DEFAULT) {
-            return git2::Cred::default();
-        }
-
-        Err(git2::Error::from_str("No valid credentials found"))
-    }
-}
-
 pub fn push_to_remote(repo_path: &Path, branch_name: &str) -> Result<(), GitOpsError> {
-    let repo = git2::Repository::open(repo_path)?;
+    let output = Command::new("git")
+        .current_dir(repo_path)
+        .args(["push", "-u", "origin", branch_name])
+        .output()
+        .map_err(|e| GitOpsError::GitError(format!("Failed to run git push: {}", e)))?;
 
-    let mut remote = repo
-        .find_remote("origin")
-        .map_err(|_| GitOpsError::GitError("Remote 'origin' not found".to_string()))?;
-
-    let refspec = format!("refs/heads/{}:refs/heads/{}", branch_name, branch_name);
-
-    let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.credentials(get_credentials_callback());
-
-    let mut push_options = git2::PushOptions::new();
-    push_options.remote_callbacks(callbacks);
-
-    remote.push(&[&refspec], Some(&mut push_options))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(GitOpsError::GitError(format!("git push failed: {}", stderr)));
+    }
 
     Ok(())
 }

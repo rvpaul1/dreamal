@@ -230,10 +230,12 @@ export function useEditorState() {
 
   const applyMacro = useCallback(
     (macro: Macro, inputLength: number) => {
+      if (!macro.expand) return;
+
       updateEditor((state) => {
         const { line, col } = state.cursor;
         const currentLine = state.lines[line];
-        const expanded = macro.expand();
+        const expanded = macro.expand!();
 
         const beforeMacro = currentLine.slice(0, col - inputLength);
         const afterCursor = currentLine.slice(col);

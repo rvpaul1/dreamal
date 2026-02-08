@@ -1,6 +1,11 @@
+export interface MacroContext {
+  lineRawText: string;
+}
+
 export interface Macro {
   trigger: string;
-  expand: () => string;
+  expand?: (args?: Record<string, unknown>) => string;
+  onSelect?: (context: MacroContext) => void;
 }
 
 function formatFullDate(date: Date): string {
@@ -43,6 +48,13 @@ export const macros: Macro[] = [
   {
     trigger: "/done",
     expand: () => '{{{JSX:<TaskStatus status="done" />}}}',
+  },
+  {
+    trigger: "/claude",
+    expand: (args) => {
+      const sessionId = args?.sessionId as string;
+      return `{{{JSX:<ClaudeStatus sessionId="${sessionId}" />}}}`;
+    },
   },
 ];
 

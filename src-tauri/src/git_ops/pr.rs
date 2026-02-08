@@ -1,25 +1,37 @@
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use super::GitOpsError;
+use super::{get_dreamal_dir, GitOpsError};
 
 fn get_github_token() -> Result<String, GitOpsError> {
-    let output = Command::new("gh")
-        .args(["auth", "token"])
-        .output()
-        .map_err(|_| GitOpsError::AuthError("gh CLI not found".to_string()))?;
-
-    if output.status.success() {
-        let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !token.is_empty() {
-            return Ok(token);
+    if let Ok(dreamal_dir) = get_dreamal_dir() {
+        let creds_path = dreamal_dir.join("credentials.json");
+        if let Ok(content) = fs::read_to_string(&creds_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(token) = json.get("github_token").and_then(|v| v.as_str()) {
+                    if !token.is_empty() {
+                        return Ok(token.to_string());
+                    }
+                }
+            }
         }
     }
 
-    std::env::var("GITHUB_TOKEN")
-        .map_err(|_| GitOpsError::AuthError(
-            "No GitHub token found. Run `gh auth login` or set GITHUB_TOKEN".to_string()
-        ))
+    if let Ok(output) = Command::new("gh").args(["auth", "token"]).output() {
+        if output.status.success() {
+            let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !token.is_empty() {
+                return Ok(token);
+            }
+        }
+    }
+
+    std::env::var("GITHUB_TOKEN").map_err(|_| {
+        GitOpsError::AuthError(
+            "No GitHub token found. Add github_token to ~/.dreamal/credentials.json".to_string(),
+        )
+    })
 }
 
 #[derive(Debug)]

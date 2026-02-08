@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getCurrentMacroInput, getMatchingMacros, type Macro } from "./macros";
+import { getCurrentMacroInput, getMatchingMacros, type Macro, type MacroContext } from "./macros";
 
 export interface AutocompletePosition {
   top: number;
@@ -11,7 +11,7 @@ interface UseMacroAutocompleteProps {
   lines: string[];
   cursorLine: number;
   cursorCol: number;
-  onSelectMacro: (macro: Macro, inputLength: number) => void;
+  onSelectMacro: (macro: Macro, inputLength: number, context: MacroContext) => void;
   lineRefs: React.MutableRefObject<Map<number, HTMLDivElement>>;
   editorRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -44,9 +44,11 @@ export function useMacroAutocomplete({
 
   const selectCurrent = useCallback(() => {
     if (isOpen && macroInput) {
-      onSelectMacro(matchingMacros[selectedIndex], macroInput.length);
+      const lineRawText = lines[cursorLine] || "";
+      const context: MacroContext = { lineRawText };
+      onSelectMacro(matchingMacros[selectedIndex], macroInput.length, context);
     }
-  }, [isOpen, macroInput, matchingMacros, selectedIndex, onSelectMacro]);
+  }, [isOpen, macroInput, matchingMacros, selectedIndex, onSelectMacro, lines, cursorLine]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent): boolean => {

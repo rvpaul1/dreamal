@@ -28,9 +28,9 @@ impl From<std::io::Error> for ProcessError {
 }
 
 // TODO: Make this configurable via .dreamal/allowed-commands.json in the target repo
-const ALLOWED_COMMANDS: &[&str] = &[
+const ALLOWED_BASH_PATTERNS: &[&str] = &[
     "npm run test",
-    "npm run test:run",
+    "npm run test:*",
     "npm test",
     "cargo test",
     "go test",
@@ -74,17 +74,17 @@ pub fn compose_instructions(
 pub fn build_claude_command(work_dir: &Path, instructions: &str) -> Command {
     let mut cmd = Command::new("claude");
 
-    let allowed_commands_str = ALLOWED_COMMANDS.join(",");
+    let bash_tools: Vec<String> = ALLOWED_BASH_PATTERNS
+        .iter()
+        .map(|pattern| format!("Bash({})", pattern))
+        .collect();
+    let allowed_tools = format!("Edit,Write,Read,{}", bash_tools.join(","));
 
     cmd.current_dir(work_dir)
         .arg("--print")
         .arg("--allowedTools")
-        .arg("Edit,Write,Read,Bash")
-        .arg("--permission-prompt-tool")
-        .arg("Bash")
-        .arg("--allowedCommands")
-        .arg(&allowed_commands_str)
-        .arg("-p")
+        .arg(&allowed_tools)
+        .arg("--")
         .arg(instructions)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -234,16 +234,15 @@ mod tests {
         let args: Vec<_> = cmd.get_args().collect();
         assert!(args.contains(&std::ffi::OsStr::new("--print")));
         assert!(args.contains(&std::ffi::OsStr::new("--allowedTools")));
-        assert!(args.contains(&std::ffi::OsStr::new("--permission-prompt-tool")));
-        assert!(args.contains(&std::ffi::OsStr::new("--allowedCommands")));
-        assert!(args.contains(&std::ffi::OsStr::new("-p")));
+        assert!(args.contains(&std::ffi::OsStr::new("--")));
+        assert!(args.contains(&std::ffi::OsStr::new("Test instructions")));
     }
 
     #[test]
-    fn test_allowed_commands() {
-        assert!(ALLOWED_COMMANDS.contains(&"npm run test"));
-        assert!(ALLOWED_COMMANDS.contains(&"cargo test"));
-        assert!(!ALLOWED_COMMANDS.contains(&"rm -rf /"));
+    fn test_allowed_bash_patterns() {
+        assert!(ALLOWED_BASH_PATTERNS.contains(&"npm run test"));
+        assert!(ALLOWED_BASH_PATTERNS.contains(&"cargo test"));
+        assert!(!ALLOWED_BASH_PATTERNS.contains(&"rm -rf /"));
     }
 
     #[test]

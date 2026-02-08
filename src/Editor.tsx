@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { useEditorState } from "./useEditorState";
@@ -11,7 +11,9 @@ import { useCursorBehavior } from "./useCursorBehavior";
 import { useBlockManipulation } from "./useBlockManipulation";
 import { useKeyboardHandling } from "./useKeyboardHandling";
 import { MacroAutocomplete } from "./MacroAutocomplete";
+import { ClaudeDelegateModal } from "./components/ClaudeDelegateModal";
 import { RenderedLine } from "./RenderedLine";
+import type { Macro, MacroContext } from "./macros";
 import { LineGutter } from "./LineGutter";
 import { isContentBlank, parseFromMDX } from "./documentModel";
 import { getCollapsedHiddenLines } from "./editorActions";
@@ -109,6 +111,61 @@ function Editor() {
     flushSave
   );
 
+  // --- Macro modal state ---
+  // TODO: Genericize this pattern for other macros that need input
+  const [claudeModal, setClaudeModal] = useState<{
+    macro: Macro;
+    instructions: string;
+    macroInputLength: number;
+  } | null>(null);
+
+  const handleSelectMacro = useCallback(
+    (macro: Macro, inputLength: number, context: MacroContext) => {
+      if (macro.trigger === "/claude") {
+        const lineText = context.lineRawText;
+        const instructionsEndIndex = lineText.length - inputLength;
+        const instructions = lineText.slice(0, instructionsEndIndex).trim();
+        setClaudeModal({ macro, instructions, macroInputLength: inputLength });
+      } else if (macro.expand) {
+        applyMacro(macro, inputLength);
+      }
+    },
+    [applyMacro]
+  );
+
+  const handleClaudeConfirm = useCallback(
+    (sessionId: string) => {
+      if (!claudeModal || !claudeModal.macro.expand) return;
+
+      const { line, col } = cursor;
+      const currentLine = lines[line];
+      const lineBeforeMacro = currentLine.slice(0, col - claudeModal.macroInputLength);
+      const lineAfterCursor = currentLine.slice(col);
+
+      const expanded = claudeModal.macro.expand({ sessionId });
+      const newLines = [...lines];
+      newLines[line] = lineBeforeMacro + expanded + lineAfterCursor;
+
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          lines: newLines,
+          cursor: { line, col: lineBeforeMacro.length + expanded.length },
+          selectionAnchor: null,
+        },
+      });
+
+      setClaudeModal(null);
+    },
+    [claudeModal, cursor, lines, document, updateDocument]
+  );
+
+  const handleClaudeCancel = useCallback(() => {
+    setClaudeModal(null);
+  }, []);
+  // --- End macro modal state ---
+
   const {
     isOpen: showAutocomplete,
     matchingMacros,
@@ -119,7 +176,7 @@ function Editor() {
     lines,
     cursorLine: cursor.line,
     cursorCol: cursor.col,
-    onSelectMacro: applyMacro,
+    onSelectMacro: handleSelectMacro,
     lineRefs,
     editorRef,
   });
@@ -285,6 +342,13 @@ function Editor() {
           macros={matchingMacros}
           selectedIndex={autocompleteIndex}
           position={getAutocompletePosition()}
+        />
+      )}
+      {claudeModal && (
+        <ClaudeDelegateModal
+          instructions={claudeModal.instructions}
+          onConfirm={handleClaudeConfirm}
+          onCancel={handleClaudeCancel}
         />
       )}
     </div>
