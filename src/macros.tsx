@@ -71,7 +71,7 @@ export function getCurrentMacroInput(
     return null;
   }
 
-  if (slashIndex > 0 && textBeforeCursor[slashIndex - 1] !== " ") {
+  if (slashIndex > 0 && !/\s/.test(textBeforeCursor[slashIndex - 1])) {
     return null;
   }
 
