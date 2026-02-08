@@ -3,6 +3,7 @@ import { useMemo } from "react";
 export interface HeadingInfo {
   level: number;
   prefixLength: number;
+  collapsed: boolean;
 }
 
 export interface BulletInfo {
@@ -11,11 +12,20 @@ export interface BulletInfo {
 }
 
 function getHeadingInfo(line: string): HeadingInfo | null {
+  const collapsedMatch = line.match(/^\^ (#{1,6}) /);
+  if (collapsedMatch) {
+    return {
+      level: collapsedMatch[1].length,
+      prefixLength: collapsedMatch[0].length,
+      collapsed: true,
+    };
+  }
   const match = line.match(/^(#{1,6}) /);
   if (match) {
     return {
       level: match[1].length,
       prefixLength: match[0].length,
+      collapsed: false,
     };
   }
   return null;

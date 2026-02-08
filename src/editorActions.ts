@@ -646,7 +646,7 @@ export function outdentBullet(state: EditorState): EditorState {
   };
 }
 
-const HEADING_REGEX = /^(#{1,6}) /;
+const HEADING_REGEX = /^(?:\^ )?(#{1,6}) /;
 
 export function getHeadingLevel(line: string): number {
   const match = line.match(HEADING_REGEX);
@@ -658,6 +658,10 @@ export function getHeadingLevel(line: string): number {
 
 export function isHeadingLine(line: string): boolean {
   return HEADING_REGEX.test(line);
+}
+
+export function isCollapsedHeading(line: string): boolean {
+  return /^\^ #{1,6} /.test(line);
 }
 
 export function getHiddenLines(
