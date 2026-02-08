@@ -1,6 +1,7 @@
 mod claude_session;
 mod git_ops;
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -153,6 +154,41 @@ fn read_entry(filepath: String) -> Result<String, String> {
     })
 }
 
+fn get_settings_path() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Could not determine home directory")?;
+    let dreamal_dir = home.join(".dreamal");
+    fs::create_dir_all(&dreamal_dir).map_err(|e| format!("Failed to create .dreamal directory: {}", e))?;
+    Ok(dreamal_dir.join("settings.json"))
+}
+
+fn read_settings() -> Result<HashMap<String, serde_json::Value>, String> {
+    let path = get_settings_path()?;
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))?;
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse settings: {}", e))
+}
+
+fn write_settings(settings: &HashMap<String, serde_json::Value>) -> Result<(), String> {
+    let path = get_settings_path()?;
+    let content = serde_json::to_string_pretty(settings).map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("Failed to write settings: {}", e))
+}
+
+#[tauri::command]
+fn get_setting(key: String) -> Result<Option<serde_json::Value>, String> {
+    let settings = read_settings()?;
+    Ok(settings.get(&key).cloned())
+}
+
+#[tauri::command]
+fn set_setting(key: String, value: serde_json::Value) -> Result<(), String> {
+    let mut settings = read_settings()?;
+    settings.insert(key, value);
+    write_settings(&settings)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let session_manager = Arc::new(SessionManager::new());
@@ -178,7 +214,9 @@ pub fn run() {
             spawn_claude_session,
             get_session_status,
             cancel_session,
-            list_claude_sessions
+            list_claude_sessions,
+            get_setting,
+            set_setting
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
