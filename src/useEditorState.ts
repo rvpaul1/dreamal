@@ -33,6 +33,7 @@ import {
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
+import { useUndoRedo } from "./useUndoRedo";
 
 export { posEqual, posBefore, getSelectionBounds } from "./editorActions";
 export type { CursorPosition, EditorState } from "./editorActions";
@@ -44,6 +45,7 @@ export function useEditorState() {
   );
   const [isOptionHeld, setIsOptionHeld] = useState(false);
   const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
+  const { pushState, undo, redo, clear: clearHistory } = useUndoRedo();
   const collapsedHeadings = useMemo(() => {
     const collapsed = new Set<number>();
     for (let i = 0; i < document.editor.lines.length; i++) {
@@ -100,7 +102,20 @@ export function useEditorState() {
     setHiddenLines(getHiddenLines(document.editor, cursorLine, selectionRange));
   }, [isOptionHeld, document.editor]);
 
-  const updateEditor = useCallback(
+  const updateEditorWithHistory = useCallback(
+    (updater: (state: EditorState) => EditorState) => {
+      setDocument((doc) => {
+        pushState(doc.editor);
+        return {
+          ...doc,
+          editor: updater(doc.editor),
+        };
+      });
+    },
+    [pushState]
+  );
+
+  const updateEditorNoHistory = useCallback(
     (updater: (state: EditorState) => EditorState) => {
       setDocument((doc) => ({
         ...doc,
@@ -109,6 +124,22 @@ export function useEditorState() {
     },
     []
   );
+
+  const handleUndo = useCallback(() => {
+    setDocument((doc) => {
+      const previous = undo(doc.editor);
+      if (!previous) return doc;
+      return { ...doc, editor: previous };
+    });
+  }, [undo]);
+
+  const handleRedo = useCallback(() => {
+    setDocument((doc) => {
+      const next = redo(doc.editor);
+      if (!next) return doc;
+      return { ...doc, editor: next };
+    });
+  }, [redo]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, currentHiddenLines: Set<number>) => {
@@ -119,39 +150,50 @@ export function useEditorState() {
       if (e.altKey && !e.shiftKey && !e.metaKey) {
         if (e.key === "ArrowUp") {
           e.preventDefault();
-          updateEditor((s) => swapHeadingSectionUp(s, currentHiddenLines));
+          updateEditorWithHistory((s) => swapHeadingSectionUp(s, currentHiddenLines));
           return;
         }
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          updateEditor((s) => swapHeadingSectionDown(s, currentHiddenLines));
+          updateEditorWithHistory((s) => swapHeadingSectionDown(s, currentHiddenLines));
           return;
         }
         return;
       }
 
       if (e.metaKey && !e.altKey && !e.ctrlKey) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+          return;
+        }
+        if (e.key === "z" && e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+          return;
+        }
+
         const isShift = e.shiftKey;
         switch (e.key) {
           case "a":
             e.preventDefault();
-            updateEditor(selectAll);
+            updateEditorNoHistory(selectAll);
             return;
           case "ArrowLeft":
             e.preventDefault();
-            updateEditor((s) => moveCursorToLineStart(s, isShift));
+            updateEditorNoHistory((s) => moveCursorToLineStart(s, isShift));
             return;
           case "ArrowRight":
             e.preventDefault();
-            updateEditor((s) => moveCursorToLineEnd(s, isShift));
+            updateEditorNoHistory((s) => moveCursorToLineEnd(s, isShift));
             return;
           case "ArrowUp":
             e.preventDefault();
-            updateEditor((s) => moveCursorToDocStart(s, isShift));
+            updateEditorNoHistory((s) => moveCursorToDocStart(s, isShift));
             return;
           case "ArrowDown":
             e.preventDefault();
-            updateEditor((s) => moveCursorToDocEnd(s, isShift));
+            updateEditorNoHistory((s) => moveCursorToDocEnd(s, isShift));
             return;
         }
         return;
@@ -166,39 +208,39 @@ export function useEditorState() {
       switch (e.key) {
         case "ArrowLeft":
           e.preventDefault();
-          updateEditor((s) => moveCursorLeft(s, isShift));
+          updateEditorNoHistory((s) => moveCursorLeft(s, isShift));
           break;
         case "ArrowRight":
           e.preventDefault();
-          updateEditor((s) => moveCursorRight(s, isShift));
+          updateEditorNoHistory((s) => moveCursorRight(s, isShift));
           break;
         case "ArrowUp":
           e.preventDefault();
-          updateEditor((s) => moveCursorUp(s, isShift));
+          updateEditorNoHistory((s) => moveCursorUp(s, isShift));
           break;
         case "ArrowDown":
           e.preventDefault();
-          updateEditor((s) => moveCursorDown(s, isShift));
+          updateEditorNoHistory((s) => moveCursorDown(s, isShift));
           break;
         case "Backspace":
           e.preventDefault();
-          updateEditor(backspace);
+          updateEditorWithHistory(backspace);
           break;
         case "Delete":
           e.preventDefault();
-          updateEditor(deleteForward);
+          updateEditorWithHistory(deleteForward);
           break;
         case "Tab":
           e.preventDefault();
           if (isShift) {
-            updateEditor((s) => {
+            updateEditorWithHistory((s) => {
               if (isBulletLine(s.lines[s.cursor.line])) {
                 return outdentBullet(s);
               }
               return s;
             });
           } else {
-            updateEditor((s) => {
+            updateEditorWithHistory((s) => {
               if (isBulletLine(s.lines[s.cursor.line])) {
                 return indentBullet(s);
               }
@@ -208,19 +250,19 @@ export function useEditorState() {
           break;
         case "Enter":
           e.preventDefault();
-          updateEditor(insertNewlineWithBullet);
+          updateEditorWithHistory(insertNewlineWithBullet);
           break;
         case "Shift":
           break;
         default:
           if (e.key.length === 1) {
             e.preventDefault();
-            updateEditor((s) => insertCharacterWithBulletCheck(s, e.key));
+            updateEditorWithHistory((s) => insertCharacterWithBulletCheck(s, e.key));
           }
           break;
       }
     },
-    [updateEditor]
+    [updateEditorWithHistory, updateEditorNoHistory, handleUndo, handleRedo]
   );
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
@@ -231,7 +273,8 @@ export function useEditorState() {
 
   const updateDocument = useCallback((doc: Document) => {
     setDocument(doc);
-  }, []);
+    clearHistory();
+  }, [clearHistory]);
 
   const updateMetadata = useCallback((metadata: Document["metadata"]) => {
     setDocument((doc) => ({ ...doc, metadata }));
@@ -241,7 +284,7 @@ export function useEditorState() {
     (macro: Macro, inputLength: number) => {
       if (!macro.expand) return;
 
-      updateEditor((state) => {
+      updateEditorWithHistory((state) => {
         const { line, col } = state.cursor;
         const currentLine = state.lines[line];
         const expanded = macro.expand!();
@@ -259,28 +302,28 @@ export function useEditorState() {
         };
       });
     },
-    [updateEditor]
+    [updateEditorWithHistory]
   );
 
   const handleClickAt = useCallback(
     (pos: CursorPosition) => {
-      updateEditor((s) => setCursor(s, pos));
+      updateEditorNoHistory((s) => setCursor(s, pos));
     },
-    [updateEditor]
+    [updateEditorNoHistory]
   );
 
   const handleDragTo = useCallback(
     (pos: CursorPosition, anchor: CursorPosition) => {
-      updateEditor((s) => setCursorWithAnchor(s, pos, anchor));
+      updateEditorNoHistory((s) => setCursorWithAnchor(s, pos, anchor));
     },
-    [updateEditor]
+    [updateEditorNoHistory]
   );
 
   const handlePaste = useCallback(
     (text: string) => {
-      updateEditor((s) => insertText(s, text));
+      updateEditorWithHistory((s) => insertText(s, text));
     },
-    [updateEditor]
+    [updateEditorWithHistory]
   );
 
   const handleCopy = useCallback((): string => {
@@ -288,7 +331,7 @@ export function useEditorState() {
   }, [document.editor]);
 
   const toggleHeadingCollapse = useCallback((lineIndex: number) => {
-    updateEditor((state) => {
+    updateEditorWithHistory((state) => {
       const line = state.lines[lineIndex];
       if (!line) return state;
       const newLines = [...state.lines];
@@ -301,7 +344,7 @@ export function useEditorState() {
       }
       return { ...state, lines: newLines };
     });
-  }, [updateEditor]);
+  }, [updateEditorWithHistory]);
 
   return {
     document,
