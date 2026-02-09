@@ -12,6 +12,7 @@ import { useBlockManipulation } from "./useBlockManipulation";
 import { useKeyboardHandling } from "./useKeyboardHandling";
 import { MacroAutocomplete } from "./MacroAutocomplete";
 import { ClaudeDelegateModal } from "./components/ClaudeDelegateModal";
+import { FindReplace } from "./FindReplace";
 import { RenderedLine } from "./RenderedLine";
 import type { Macro, MacroContext } from "./macros";
 import { LineGutter } from "./LineGutter";
@@ -110,6 +111,82 @@ function Editor() {
     handleLoadEntry,
     flushSave
   );
+
+  // --- Find/Replace state ---
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [findReplaceShowReplace, setFindReplaceShowReplace] = useState(false);
+
+  const handleFindReplaceClose = useCallback(() => {
+    setFindReplaceOpen(false);
+    editorRef.current?.focus();
+  }, []);
+
+  const handleFindReplaceNavigate = useCallback(
+    (line: number, col: number) => {
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          cursor: { line, col },
+          selectionAnchor: null,
+        },
+      });
+    },
+    [document, updateDocument]
+  );
+
+  const handleFindReplaceReplace = useCallback(
+    (match: FindReplaceMatch, replacement: string) => {
+      const newLines = [...lines];
+      const line = newLines[match.line];
+      newLines[match.line] =
+        line.slice(0, match.startCol) + replacement + line.slice(match.endCol);
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          lines: newLines,
+          cursor: { line: match.line, col: match.startCol + replacement.length },
+          selectionAnchor: null,
+        },
+      });
+    },
+    [lines, document, updateDocument]
+  );
+
+  const handleFindReplaceAll = useCallback(
+    (searchText: string, replacement: string) => {
+      const lowerSearch = searchText.toLowerCase();
+      const newLines = lines.map((line) => {
+        let result = "";
+        const lowerLine = line.toLowerCase();
+        let searchStart = 0;
+        while (true) {
+          const idx = lowerLine.indexOf(lowerSearch, searchStart);
+          if (idx === -1) {
+            result += line.slice(searchStart);
+            break;
+          }
+          result += line.slice(searchStart, idx) + replacement;
+          searchStart = idx + searchText.length;
+        }
+        return result;
+      });
+      updateDocument({
+        ...document,
+        editor: {
+          ...document.editor,
+          lines: newLines,
+          selectionAnchor: null,
+        },
+      });
+    },
+    [lines, document, updateDocument]
+  );
+
+  const handleToggleFindReplaceReplace = useCallback(() => {
+    setFindReplaceShowReplace((prev) => !prev);
+  }, []);
 
   // --- Macro modal state ---
   // TODO: Genericize this pattern for other macros that need input
@@ -237,6 +314,16 @@ function Editor() {
     [baseHandleMouseDown, markClickInput]
   );
 
+  const openFind = useCallback(() => {
+    setFindReplaceOpen(true);
+    setFindReplaceShowReplace(false);
+  }, []);
+
+  const openReplace = useCallback(() => {
+    setFindReplaceOpen(true);
+    setFindReplaceShowReplace(true);
+  }, []);
+
   const { handleKeyDown, handlePasteEvent, handleCopyEvent } = useKeyboardHandling({
     cursor,
     hasSelection,
@@ -257,6 +344,8 @@ function Editor() {
     hasNext,
     flushSave,
     updateDocument,
+    onOpenFind: openFind,
+    onOpenReplace: openReplace,
   });
 
   useEffect(() => {
@@ -368,6 +457,17 @@ function Editor() {
           instructions={claudeModal.instructions}
           onConfirm={handleClaudeConfirm}
           onCancel={handleClaudeCancel}
+        />
+      )}
+      {findReplaceOpen && (
+        <FindReplace
+          lines={lines}
+          showReplace={findReplaceShowReplace}
+          onClose={handleFindReplaceClose}
+          onNavigateToMatch={handleFindReplaceNavigate}
+          onReplace={handleFindReplaceReplace}
+          onReplaceAll={handleFindReplaceAll}
+          onToggleReplace={handleToggleFindReplaceReplace}
         />
       )}
     </div>
