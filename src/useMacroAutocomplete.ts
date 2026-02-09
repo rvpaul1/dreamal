@@ -94,13 +94,18 @@ export function useMacroAutocomplete({
     const lineRect = lineEl.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
 
+    const lineContentEl = lineEl.querySelector(".line-content");
+    const contentRect = lineContentEl
+      ? lineContentEl.getBoundingClientRect()
+      : lineRect;
+
     const macroInputLength = macroInput?.length ?? 0;
     const triggerCol = cursorCol - macroInputLength;
     const lineText = lines[cursorLine] || "";
     const textBeforeTrigger = lineText.slice(0, triggerCol);
 
     const measureSpan = window.document.createElement("span");
-    measureSpan.style.font = getComputedStyle(lineEl).font;
+    measureSpan.style.font = getComputedStyle(lineContentEl || lineEl).font;
     measureSpan.style.visibility = "hidden";
     measureSpan.style.position = "absolute";
     measureSpan.style.whiteSpace = "pre";
@@ -109,7 +114,7 @@ export function useMacroAutocomplete({
     const textWidth = measureSpan.getBoundingClientRect().width;
     window.document.body.removeChild(measureSpan);
 
-    const left = lineRect.left - editorRect.left + textWidth;
+    const left = contentRect.left - editorRect.left + textWidth;
 
     const windowMidpoint = window.innerHeight / 2;
     const isAboveEquator = lineRect.bottom < windowMidpoint;
