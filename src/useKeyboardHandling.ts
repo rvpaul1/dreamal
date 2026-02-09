@@ -24,6 +24,8 @@ interface UseKeyboardHandlingProps {
   hasNext: boolean;
   flushSave: () => void;
   updateDocument: (doc: Document) => void;
+  onOpenFind?: () => void;
+  onOpenReplace?: () => void;
 }
 
 export function useKeyboardHandling({
@@ -46,10 +48,24 @@ export function useKeyboardHandling({
   hasNext,
   flushSave,
   updateDocument,
+  onOpenFind,
+  onOpenReplace,
 }: UseKeyboardHandlingProps) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       markKeyInput();
+
+      if (e.metaKey && !e.shiftKey && e.key === "f") {
+        e.preventDefault();
+        onOpenFind?.();
+        return;
+      }
+
+      if (e.metaKey && !e.shiftKey && e.key === "r") {
+        e.preventDefault();
+        onOpenReplace?.();
+        return;
+      }
 
       if (e.metaKey && e.shiftKey && e.key === "[") {
         e.preventDefault();
@@ -137,6 +153,8 @@ export function useKeyboardHandling({
       getInlineBlockStartingAfter,
       flushSave,
       updateDocument,
+      onOpenFind,
+      onOpenReplace,
     ]
   );
 
