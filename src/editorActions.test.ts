@@ -35,6 +35,7 @@ import {
   getCollapsedHiddenLines,
   swapHeadingSectionUp,
   swapHeadingSectionDown,
+  parseMarkdownLinks,
 } from "./editorActions";
 
 function state(
@@ -1347,6 +1348,61 @@ describe("Heading Functions", () => {
       expect(hidden.has(1)).toBe(true);
       expect(hidden.has(2)).toBe(true);
       expect(hidden.has(3)).toBe(false);
+    });
+  });
+
+  describe("parseMarkdownLinks", () => {
+    it("returns empty array for text without links", () => {
+      expect(parseMarkdownLinks("hello world")).toEqual([]);
+    });
+
+    it("parses a single markdown link", () => {
+      const result = parseMarkdownLinks("[Google](https://google.com)");
+      expect(result).toEqual([
+        { text: "Google", url: "https://google.com", startCol: 0, endCol: 28 },
+      ]);
+    });
+
+    it("parses link with surrounding text", () => {
+      const result = parseMarkdownLinks("Visit [Google](https://google.com) for search");
+      expect(result).toEqual([
+        { text: "Google", url: "https://google.com", startCol: 6, endCol: 34 },
+      ]);
+    });
+
+    it("parses multiple links in same text", () => {
+      const result = parseMarkdownLinks("[A](http://a.com) and [B](http://b.com)");
+      expect(result).toHaveLength(2);
+      expect(result[0].text).toBe("A");
+      expect(result[0].url).toBe("http://a.com");
+      expect(result[1].text).toBe("B");
+      expect(result[1].url).toBe("http://b.com");
+    });
+
+    it("parses link with empty text", () => {
+      const result = parseMarkdownLinks("[](https://example.com)");
+      expect(result).toEqual([
+        { text: "", url: "https://example.com", startCol: 0, endCol: 23 },
+      ]);
+    });
+
+    it("parses link with empty url", () => {
+      const result = parseMarkdownLinks("[text]()");
+      expect(result).toEqual([
+        { text: "text", url: "", startCol: 0, endCol: 8 },
+      ]);
+    });
+
+    it("does not match incomplete link syntax", () => {
+      expect(parseMarkdownLinks("[text]")).toEqual([]);
+      expect(parseMarkdownLinks("[text](")).toEqual([]);
+      expect(parseMarkdownLinks("(url)")).toEqual([]);
+    });
+
+    it("returns correct column positions for links after other content", () => {
+      const result = parseMarkdownLinks("prefix [link](url) suffix");
+      expect(result[0].startCol).toBe(7);
+      expect(result[0].endCol).toBe(18);
     });
   });
 });

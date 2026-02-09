@@ -850,6 +850,30 @@ export function swapHeadingSectionUp(
   };
 }
 
+export interface MarkdownLink {
+  text: string;
+  url: string;
+  startCol: number;
+  endCol: number;
+}
+
+const MARKDOWN_LINK_REGEX = /\[([^\]]*)\]\(([^)]*)\)/g;
+
+export function parseMarkdownLinks(text: string): MarkdownLink[] {
+  const links: MarkdownLink[] = [];
+  MARKDOWN_LINK_REGEX.lastIndex = 0;
+  let match;
+  while ((match = MARKDOWN_LINK_REGEX.exec(text)) !== null) {
+    links.push({
+      text: match[1],
+      url: match[2],
+      startCol: match.index,
+      endCol: match.index + match[0].length,
+    });
+  }
+  return links;
+}
+
 export function swapHeadingSectionDown(
   state: EditorState,
   hiddenLines: Set<number>
