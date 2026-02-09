@@ -74,6 +74,26 @@ export function RenderedLine({
       }
     : rawSelectionInfo;
 
+  const adjustedSelectedBlockRange = selectedBlockRange && prefixLen > 0
+    ? {
+        startCol: selectedBlockRange.startCol - prefixLen,
+        endCol: selectedBlockRange.endCol - prefixLen,
+      }
+    : selectedBlockRange;
+
+  const handleAdjustedBlockSelect = onBlockSelect
+    ? (startCol: number, endCol: number) => onBlockSelect(startCol + prefixLen, endCol + prefixLen)
+    : undefined;
+
+  const handleAdjustedBlockStateChange = onBlockStateChange
+    ? (startCol: number, endCol: number, newComponent: ParsedComponent) =>
+        onBlockStateChange(startCol + prefixLen, endCol + prefixLen, newComponent)
+    : undefined;
+
+  const handleAdjustedBlockDelete = onBlockDelete
+    ? (startCol: number, endCol: number) => onBlockDelete(startCol + prefixLen, endCol + prefixLen)
+    : undefined;
+
   return (
     <>
       {hideBulletPrefix && (
@@ -91,10 +111,10 @@ export function RenderedLine({
             cursorCol={adjustedCursorCol}
             cursorVisible={cursorVisible}
             selectionInfo={selectionInfo}
-            onBlockSelect={onBlockSelect}
-            selectedBlockRange={selectedBlockRange}
-            onBlockStateChange={onBlockStateChange}
-            onBlockDelete={onBlockDelete}
+            onBlockSelect={handleAdjustedBlockSelect}
+            selectedBlockRange={adjustedSelectedBlockRange}
+            onBlockStateChange={handleAdjustedBlockStateChange}
+            onBlockDelete={handleAdjustedBlockDelete}
           />
         ))}
         {displayText.length === 0 && <span>{"\u200B"}</span>}

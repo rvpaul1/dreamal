@@ -182,6 +182,7 @@ html, body, #root {
   padding: 2px 4px;
   cursor: pointer;
   transition: box-shadow 0.15s ease;
+  vertical-align: middle;
 }
 
 .jsx-block:hover {
