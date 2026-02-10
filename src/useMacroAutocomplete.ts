@@ -104,24 +104,39 @@ export function useMacroAutocomplete({
     const lineText = lines[cursorLine] || "";
     const textBeforeTrigger = lineText.slice(0, triggerCol);
 
+    const lineContent = lineEl.querySelector(".line-content");
+    const measureEl = lineContent ?? lineEl;
+    const measureStyle = getComputedStyle(measureEl);
+
     const measureSpan = window.document.createElement("span");
     measureSpan.style.font = getComputedStyle(lineContentEl || lineEl).font;
     measureSpan.style.visibility = "hidden";
     measureSpan.style.position = "absolute";
-    measureSpan.style.whiteSpace = "pre";
-    measureSpan.textContent = textBeforeTrigger;
+    measureSpan.style.whiteSpace = measureStyle.whiteSpace;
+    measureSpan.style.wordWrap = measureStyle.wordWrap;
+    measureSpan.style.overflowWrap = measureStyle.overflowWrap;
+    measureSpan.style.width = measureEl.getBoundingClientRect().width + "px";
+    measureSpan.textContent = textBeforeTrigger + "\u200B";
     window.document.body.appendChild(measureSpan);
-    const textWidth = measureSpan.getBoundingClientRect().width;
+
+    const rng = window.document.createRange();
+    const textNode = measureSpan.firstChild!;
+    rng.setStart(textNode, textNode.textContent!.length - 1);
+    rng.setEnd(textNode, textNode.textContent!.length);
+    const caretRect = rng.getBoundingClientRect();
+    const spanRect = measureSpan.getBoundingClientRect();
     window.document.body.removeChild(measureSpan);
 
     const left = contentRect.left - editorRect.left + textWidth;
 
     const windowMidpoint = window.innerHeight / 2;
-    const isAboveEquator = lineRect.bottom < windowMidpoint;
+    const wrappedTop = lineContentRect.top + textTop;
+    const wrappedBottom = wrappedTop + caretRect.height;
+    const isAboveEquator = wrappedBottom < windowMidpoint;
 
     const top = isAboveEquator
-      ? lineRect.bottom - editorRect.top
-      : lineRect.top - editorRect.top;
+      ? wrappedBottom - editorRect.top
+      : wrappedTop - editorRect.top;
 
     return { top, left, showAbove: !isAboveEquator };
   }, [cursorLine, cursorCol, macroInput, lines, lineRefs, editorRef]);
