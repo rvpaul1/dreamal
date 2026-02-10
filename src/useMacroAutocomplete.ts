@@ -94,6 +94,11 @@ export function useMacroAutocomplete({
     const lineRect = lineEl.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
 
+    const lineContentEl = lineEl.querySelector(".line-content");
+    const contentRect = lineContentEl
+      ? lineContentEl.getBoundingClientRect()
+      : lineRect;
+
     const macroInputLength = macroInput?.length ?? 0;
     const triggerCol = cursorCol - macroInputLength;
     const lineText = lines[cursorLine] || "";
@@ -104,7 +109,7 @@ export function useMacroAutocomplete({
     const measureStyle = getComputedStyle(measureEl);
 
     const measureSpan = window.document.createElement("span");
-    measureSpan.style.font = measureStyle.font;
+    measureSpan.style.font = getComputedStyle(lineContentEl || lineEl).font;
     measureSpan.style.visibility = "hidden";
     measureSpan.style.position = "absolute";
     measureSpan.style.whiteSpace = measureStyle.whiteSpace;
@@ -122,14 +127,7 @@ export function useMacroAutocomplete({
     const spanRect = measureSpan.getBoundingClientRect();
     window.document.body.removeChild(measureSpan);
 
-    const textLeft = caretRect.left - spanRect.left;
-    const textTop = caretRect.top - spanRect.top;
-    const lineContentRect = measureEl.getBoundingClientRect();
-
-    const menuWidth = 200;
-    const maxLeft = editorRect.width - menuWidth;
-    const rawLeft = lineContentRect.left - editorRect.left + textLeft;
-    const left = Math.max(0, Math.min(rawLeft, maxLeft));
+    const left = contentRect.left - editorRect.left + textWidth;
 
     const windowMidpoint = window.innerHeight / 2;
     const wrappedTop = lineContentRect.top + textTop;

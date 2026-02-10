@@ -220,6 +220,18 @@ html, body, #root {
   min-height: 27px;
 }
 
+.md-link {
+  color: #6a9fd8;
+  text-decoration: underline;
+  text-decoration-color: rgba(106, 159, 216, 0.4);
+  cursor: pointer;
+}
+
+.md-link:hover {
+  color: #8ab8ef;
+  text-decoration-color: rgba(138, 184, 239, 0.8);
+}
+
 .bullet-marker {
   flex-shrink: 0;
   text-align: right;
