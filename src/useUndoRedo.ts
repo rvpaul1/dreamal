@@ -19,6 +19,7 @@ export function useUndoRedo() {
 
   const pushState = useCallback((state: EditorState) => {
     if (lastPushedState.current && statesEqual(lastPushedState.current, state)) {
+      redoStack.current = [];
       return;
     }
     undoStack.current.push(state);

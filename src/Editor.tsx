@@ -267,7 +267,7 @@ function Editor() {
     matchingMacros,
     selectedIndex: autocompleteIndex,
     handleKeyDown: handleMacroKeyDown,
-    getPosition: getAutocompletePosition,
+    position: autocompletePosition,
   } = useMacroAutocomplete({
     lines,
     cursorLine: cursor.line,
@@ -449,7 +449,7 @@ function Editor() {
         <MacroAutocomplete
           macros={matchingMacros}
           selectedIndex={autocompleteIndex}
-          position={getAutocompletePosition()}
+          position={autocompletePosition}
         />
       )}
       {claudeModal && (

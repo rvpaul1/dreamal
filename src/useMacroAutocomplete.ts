@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getCurrentMacroInput, getMatchingMacros, type Macro, type MacroContext } from "./macros";
 
 export interface AutocompletePosition {
@@ -85,52 +85,51 @@ export function useMacroAutocomplete({
     [isOpen, matchingMacros.length, selectCurrent]
   );
 
-  const getPosition = useCallback((): AutocompletePosition => {
+  const cachedPosition = useRef<AutocompletePosition | null>(null);
+  const wasOpen = useRef(false);
+
+  const computePosition = useCallback((): AutocompletePosition => {
     const lineEl = lineRefs.current.get(cursorLine);
     if (!lineEl || !editorRef.current) {
       return { top: 0, left: 0 };
     }
 
-    const lineRect = lineEl.getBoundingClientRect();
     const editorRect = editorRef.current.getBoundingClientRect();
+    const cursorEl = lineEl.querySelector(".cursor");
 
-    const lineContentEl = lineEl.querySelector(".line-content");
-    const contentRect = lineContentEl
-      ? lineContentEl.getBoundingClientRect()
-      : lineRect;
+    if (!cursorEl) {
+      return { top: 0, left: 0 };
+    }
 
-    const macroInputLength = macroInput?.length ?? 0;
-    const triggerCol = cursorCol - macroInputLength;
-    const lineText = lines[cursorLine] || "";
-    const textBeforeTrigger = lineText.slice(0, triggerCol);
+    const cursorRect = cursorEl.getBoundingClientRect();
 
-    const measureSpan = window.document.createElement("span");
-    measureSpan.style.font = getComputedStyle(lineContentEl || lineEl).font;
-    measureSpan.style.visibility = "hidden";
-    measureSpan.style.position = "absolute";
-    measureSpan.style.whiteSpace = "pre";
-    measureSpan.textContent = textBeforeTrigger;
-    window.document.body.appendChild(measureSpan);
-    const textWidth = measureSpan.getBoundingClientRect().width;
-    window.document.body.removeChild(measureSpan);
-
-    const left = contentRect.left - editorRect.left + textWidth;
+    const left = cursorRect.left - editorRect.left;
 
     const windowMidpoint = window.innerHeight / 2;
-    const isAboveEquator = lineRect.bottom < windowMidpoint;
+    const isAboveEquator = cursorRect.bottom < windowMidpoint;
 
     const top = isAboveEquator
-      ? lineRect.bottom - editorRect.top
-      : lineRect.top - editorRect.top;
+      ? cursorRect.bottom - editorRect.top
+      : cursorRect.top - editorRect.top;
 
     return { top, left, showAbove: !isAboveEquator };
-  }, [cursorLine, cursorCol, macroInput, lines, lineRefs, editorRef]);
+  }, [cursorLine, lineRefs, editorRef]);
+
+  if (!isOpen) {
+    cachedPosition.current = null;
+    wasOpen.current = false;
+  } else if (!wasOpen.current) {
+    cachedPosition.current = computePosition();
+    wasOpen.current = true;
+  }
+
+  const position = cachedPosition.current ?? { top: 0, left: 0 };
 
   return {
     isOpen,
     matchingMacros,
     selectedIndex,
     handleKeyDown,
-    getPosition,
+    position,
   };
 }
