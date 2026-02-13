@@ -357,6 +357,12 @@ function splitTextWithLinks(textSegment: { content: string; startCol: number; en
   let match;
 
   while ((match = MARKDOWN_LINK_PATTERN.exec(content)) !== null) {
+    const matchEnd = match.index + match[0].length;
+    const charAfter = content[matchEnd];
+    const isFinished = matchEnd < content.length && charAfter === " ";
+
+    if (!isFinished) continue;
+
     if (match.index > lastIndex) {
       results.push({
         type: "text",
@@ -373,10 +379,10 @@ function splitTextWithLinks(textSegment: { content: string; startCol: number; en
         url: match[2],
       },
       startCol: startCol + match.index,
-      endCol: startCol + match.index + match[0].length,
+      endCol: startCol + matchEnd,
     });
 
-    lastIndex = match.index + match[0].length;
+    lastIndex = matchEnd;
   }
 
   if (lastIndex < content.length) {

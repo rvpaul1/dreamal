@@ -1,4 +1,5 @@
 import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorState";
+import { BrowserLink } from "./components/BrowserLink";
 import { parseLineSegments, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment } from "./jsxBlocks";
 import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
@@ -288,17 +289,9 @@ function InlineLinkRenderer({
       {showCursorBefore && (
         <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
       )}
-      <a
-        className="md-link"
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
+      <BrowserLink className="md-link" href={link.url}>
         {link.text}
-      </a>
+      </BrowserLink>
       {showCursorAfter && (
         <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
       )}
