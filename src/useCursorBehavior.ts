@@ -21,6 +21,12 @@ export function useCursorBehavior({
   const prevCursorRef = useRef(cursor);
   const lastInputWasClickRef = useRef(false);
 
+  const isBlockSegment = useCallback(
+    (seg: ReturnType<typeof parseLineSegments>[number]) =>
+      seg.type === "jsx" || seg.type === "link",
+    []
+  );
+
   const getInlineBlockAt = useCallback(
     (line: number, col: number): { startCol: number; endCol: number } | null => {
       const lineText = lines[line];
@@ -28,13 +34,13 @@ export function useCursorBehavior({
 
       const segments = parseLineSegments(lineText);
       for (const seg of segments) {
-        if (seg.type === "jsx" && col > seg.startCol && col < seg.endCol) {
+        if (isBlockSegment(seg) && col > seg.startCol && col < seg.endCol) {
           return { startCol: seg.startCol, endCol: seg.endCol };
         }
       }
       return null;
     },
-    [lines]
+    [lines, isBlockSegment]
   );
 
   const getInlineBlockEndingBefore = useCallback(
@@ -44,13 +50,13 @@ export function useCursorBehavior({
 
       const segments = parseLineSegments(lineText);
       for (const seg of segments) {
-        if (seg.type === "jsx" && seg.endCol === col) {
+        if (isBlockSegment(seg) && seg.endCol === col) {
           return { startCol: seg.startCol, endCol: seg.endCol };
         }
       }
       return null;
     },
-    [lines]
+    [lines, isBlockSegment]
   );
 
   const getInlineBlockStartingAfter = useCallback(
@@ -60,13 +66,13 @@ export function useCursorBehavior({
 
       const segments = parseLineSegments(lineText);
       for (const seg of segments) {
-        if (seg.type === "jsx" && seg.startCol === col) {
+        if (isBlockSegment(seg) && seg.startCol === col) {
           return { startCol: seg.startCol, endCol: seg.endCol };
         }
       }
       return null;
     },
-    [lines]
+    [lines, isBlockSegment]
   );
 
   useEffect(() => {

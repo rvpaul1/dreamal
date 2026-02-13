@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import type { CursorPosition } from "./useEditorState";
 import type { BulletInfo, HeadingInfo } from "./useMarkdown";
+import { parseLineSegments } from "./jsxBlocks";
 
 export function isWordChar(char: string): boolean {
   return /[a-zA-Z0-9]/.test(char);
@@ -30,6 +31,35 @@ export function getWordBoundsAt(line: string, col: number): { start: number; end
   }
 
   return { start, end };
+}
+
+function displayColToRawCol(lineText: string, displayCol: number): number {
+  const segments = parseLineSegments(lineText);
+  let displayOffset = 0;
+
+  for (const seg of segments) {
+    if (seg.type === "link") {
+      const linkDisplayLen = seg.link.text.length;
+      if (displayCol <= displayOffset + linkDisplayLen) {
+        if (displayCol <= displayOffset) {
+          return seg.startCol;
+        }
+        return seg.endCol;
+      }
+      displayOffset += linkDisplayLen;
+    } else if (seg.type === "jsx") {
+      displayOffset += 0;
+    } else {
+      const textLen = seg.content.length;
+      if (displayCol <= displayOffset + textLen) {
+        const offsetInSeg = displayCol - displayOffset;
+        return seg.startCol + offsetInSeg;
+      }
+      displayOffset += textLen;
+    }
+  }
+
+  return lineText.length;
 }
 
 interface UseMouseSelectionOptions {
@@ -127,16 +157,24 @@ export function useMouseSelection({
       }
 
       const walkRoot = lineTextEl || lineEl;
-      let col = 0;
+      let displayCol = 0;
       const walker = ownerDoc.createTreeWalker(walkRoot, NodeFilter.SHOW_TEXT);
       let node: Text | null;
       while ((node = walker.nextNode() as Text | null)) {
         if (node === range.startContainer) {
-          col += range.startOffset;
+          displayCol += range.startOffset;
           break;
         }
-        col += node.textContent?.length ?? 0;
+        displayCol += node.textContent?.length ?? 0;
       }
+
+      const displayText = lines[targetLine] ?? "";
+      const rawDisplayText = hideHeadingPrefix
+        ? displayText.slice(prefixLen)
+        : hideBulletPrefix
+          ? displayText.slice(prefixLen)
+          : displayText;
+      const col = displayColToRawCol(rawDisplayText, displayCol);
 
       return { line: targetLine, col: col + prefixLen };
     },

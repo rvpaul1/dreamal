@@ -329,9 +329,15 @@ export function getBlockAtPosition(
   return blocks.find((block) => isPositionInBlock(line, col, block)) || null;
 }
 
+export interface MarkdownLinkSegment {
+  text: string;
+  url: string;
+}
+
 export type LineSegment =
   | { type: "text"; content: string; startCol: number; endCol: number }
-  | { type: "jsx"; block: InlineJSXBlock; startCol: number; endCol: number };
+  | { type: "jsx"; block: InlineJSXBlock; startCol: number; endCol: number }
+  | { type: "link"; link: MarkdownLinkSegment; startCol: number; endCol: number };
 
 export interface InlineJSXBlock {
   raw: string;
@@ -340,9 +346,63 @@ export interface InlineJSXBlock {
 }
 
 const INLINE_JSX_PATTERN = /\{\{\{JSX:([\s\S]*?)\}\}\}/g;
+const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\(([^)]*)\)/g;
+
+function splitTextWithLinks(textSegment: { content: string; startCol: number; endCol: number }): LineSegment[] {
+  const { content, startCol } = textSegment;
+  const results: LineSegment[] = [];
+  let lastIndex = 0;
+
+  MARKDOWN_LINK_PATTERN.lastIndex = 0;
+  let match;
+
+  while ((match = MARKDOWN_LINK_PATTERN.exec(content)) !== null) {
+    const matchEnd = match.index + match[0].length;
+    const charAfter = content[matchEnd];
+    const isFinished = matchEnd < content.length && charAfter === " ";
+
+    if (!isFinished) continue;
+
+    if (match.index > lastIndex) {
+      results.push({
+        type: "text",
+        content: content.slice(lastIndex, match.index),
+        startCol: startCol + lastIndex,
+        endCol: startCol + match.index,
+      });
+    }
+
+    results.push({
+      type: "link",
+      link: {
+        text: match[1],
+        url: match[2],
+      },
+      startCol: startCol + match.index,
+      endCol: startCol + matchEnd,
+    });
+
+    lastIndex = matchEnd;
+  }
+
+  if (lastIndex < content.length) {
+    results.push({
+      type: "text",
+      content: content.slice(lastIndex),
+      startCol: startCol + lastIndex,
+      endCol: startCol + content.length,
+    });
+  }
+
+  if (results.length === 0) {
+    results.push(textSegment as LineSegment);
+  }
+
+  return results;
+}
 
 export function parseLineSegments(lineText: string): LineSegment[] {
-  const segments: LineSegment[] = [];
+  const rawSegments: LineSegment[] = [];
   let lastIndex = 0;
 
   INLINE_JSX_PATTERN.lastIndex = 0;
@@ -350,7 +410,7 @@ export function parseLineSegments(lineText: string): LineSegment[] {
 
   while ((match = INLINE_JSX_PATTERN.exec(lineText)) !== null) {
     if (match.index > lastIndex) {
-      segments.push({
+      rawSegments.push({
         type: "text",
         content: lineText.slice(lastIndex, match.index),
         startCol: lastIndex,
@@ -368,7 +428,7 @@ export function parseLineSegments(lineText: string): LineSegment[] {
       error = e instanceof Error ? e.message : "Parse error";
     }
 
-    segments.push({
+    rawSegments.push({
       type: "jsx",
       block: {
         raw: match[0],
@@ -383,7 +443,7 @@ export function parseLineSegments(lineText: string): LineSegment[] {
   }
 
   if (lastIndex < lineText.length) {
-    segments.push({
+    rawSegments.push({
       type: "text",
       content: lineText.slice(lastIndex),
       startCol: lastIndex,
@@ -391,13 +451,22 @@ export function parseLineSegments(lineText: string): LineSegment[] {
     });
   }
 
-  if (segments.length === 0) {
-    segments.push({
+  if (rawSegments.length === 0) {
+    rawSegments.push({
       type: "text",
       content: lineText,
       startCol: 0,
       endCol: lineText.length,
     });
+  }
+
+  const segments: LineSegment[] = [];
+  for (const seg of rawSegments) {
+    if (seg.type === "text") {
+      segments.push(...splitTextWithLinks(seg));
+    } else {
+      segments.push(seg);
+    }
   }
 
   return segments;
