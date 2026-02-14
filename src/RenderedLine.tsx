@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorState";
-import { parseLineSegments, type LineSegment, type InlineJSXBlock } from "./jsxBlocks";
+import { BrowserLink } from "./components/BrowserLink";
+import { parseLineSegments, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment } from "./jsxBlocks";
 import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
 import type { BulletInfo } from "./useMarkdown";
-import { parseMarkdownLinks } from "./editorActions";
 
 interface RenderedLineProps {
   lineText: string;
@@ -228,6 +228,19 @@ function SegmentRenderer({
     );
   }
 
+  if (segment.type === "link") {
+    return (
+      <InlineLinkRenderer
+        link={segment.link}
+        startCol={segment.startCol}
+        endCol={segment.endCol}
+        isCursorLine={isCursorLine}
+        cursorCol={cursorCol}
+        cursorVisible={cursorVisible}
+      />
+    );
+  }
+
   const { content, startCol, endCol } = segment;
   const cursorInSegment = isCursorLine && cursorCol >= startCol && cursorCol <= endCol;
   const relativeCursorCol = cursorCol - startCol;
@@ -242,9 +255,6 @@ function SegmentRenderer({
         </>
       );
     }
-    if (!isCursorLine) {
-      return <TextWithLinks content={content} />;
-    }
     return <span>{content}</span>;
   }
 
@@ -255,9 +265,6 @@ function SegmentRenderer({
   const hasSelectionInSegment = segSelEnd > segSelStart && selStart < endCol && selEnd > startCol;
 
   if (!hasSelectionInSegment) {
-    if (!isCursorLine) {
-      return <TextWithLinks content={content} />;
-    }
     return <span>{content}</span>;
   }
 
@@ -287,42 +294,39 @@ function SegmentRenderer({
   );
 }
 
-function TextWithLinks({ content }: { content: string }) {
-  const links = parseMarkdownLinks(content);
-  if (links.length === 0) {
-    return <span>{content}</span>;
-  }
+interface InlineLinkRendererProps {
+  link: MarkdownLinkSegment;
+  startCol: number;
+  endCol: number;
+  isCursorLine: boolean;
+  cursorCol: number;
+  cursorVisible: boolean;
+}
 
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
+function InlineLinkRenderer({
+  link,
+  startCol,
+  endCol,
+  isCursorLine,
+  cursorCol,
+  cursorVisible,
+}: InlineLinkRendererProps) {
+  const showCursorBefore = isCursorLine && cursorCol === startCol;
+  const showCursorAfter = isCursorLine && cursorCol === endCol;
 
-  for (let i = 0; i < links.length; i++) {
-    const link = links[i];
-    if (link.startCol > lastIndex) {
-      parts.push(<span key={`t${i}`}>{content.slice(lastIndex, link.startCol)}</span>);
-    }
-    parts.push(
-      <a
-        key={`l${i}`}
-        className="md-link"
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
+  return (
+    <>
+      {showCursorBefore && (
+        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
+      )}
+      <BrowserLink className="md-link" href={link.url}>
         {link.text}
-      </a>
-    );
-    lastIndex = link.endCol;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(<span key="tail">{content.slice(lastIndex)}</span>);
-  }
-
-  return <>{parts}</>;
+      </BrowserLink>
+      {showCursorAfter && (
+        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
+      )}
+    </>
+  );
 }
 
 interface InlineJSXBlockRendererProps {
