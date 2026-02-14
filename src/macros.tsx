@@ -50,6 +50,10 @@ export const macros: Macro[] = [
     expand: () => '{{{JSX:<TaskStatus status="done" />}}}',
   },
   {
+    trigger: "/wont-do",
+    expand: () => '{{{JSX:<TaskStatus status="wont-do" />}}}',
+  },
+  {
     trigger: "/claude",
     expand: (args) => {
       const sessionId = args?.sessionId as string;

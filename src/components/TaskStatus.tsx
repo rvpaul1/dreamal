@@ -1,5 +1,5 @@
 interface TaskStatusProps {
-  status?: "todo" | "in-progress" | "done";
+  status?: "todo" | "in-progress" | "done" | "wont-do";
 }
 
 const statusConfig = {
@@ -20,6 +20,12 @@ const statusConfig = {
     backgroundColor: "rgba(34, 197, 94, 0.2)",
     color: "#22c55e",
     borderColor: "rgba(34, 197, 94, 0.4)",
+  },
+  "wont-do": {
+    label: "Won't Do",
+    backgroundColor: "rgba(156, 163, 175, 0.2)",
+    color: "#9ca3af",
+    borderColor: "rgba(156, 163, 175, 0.4)",
   },
 };
 
