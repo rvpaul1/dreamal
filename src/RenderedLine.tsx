@@ -6,6 +6,48 @@ import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
 import type { BulletInfo } from "./useMarkdown";
 
+interface SelectionInfo {
+  selStart: number;
+  selEnd: number;
+  cursorAtStart: boolean;
+  cursorAtEnd: boolean;
+  showLineEndSelection: boolean;
+}
+
+function getSelectionInfo(
+  lineIndex: number,
+  lineText: string,
+  anchor: CursorPosition,
+  cursor: CursorPosition
+): SelectionInfo | null {
+  const { start, end } = getSelectionBounds(anchor, cursor);
+  const isInSelection = lineIndex >= start.line && lineIndex <= end.line;
+
+  if (!isInSelection) {
+    return null;
+  }
+
+  const selStart = lineIndex === start.line ? start.col : 0;
+  const selEnd = lineIndex === end.line ? end.col : lineText.length;
+  const isCursorLine = lineIndex === cursor.line;
+
+  return {
+    selStart,
+    selEnd,
+    cursorAtStart: isCursorLine && cursor.col === selStart && posBefore(cursor, anchor),
+    cursorAtEnd: isCursorLine && cursor.col === selEnd && posBefore(anchor, cursor),
+    showLineEndSelection: lineIndex !== end.line,
+  };
+}
+
+function getBulletChar(indentLevel: number): string {
+  return indentLevel % 2 === 1 ? "●" : "○";
+}
+
+function Cursor({ visible }: { visible: boolean }) {
+  return <span className={`cursor ${visible ? "visible" : ""}`} />;
+}
+
 interface RenderedLineProps {
   lineText: string;
   lineIndex: number;
@@ -46,10 +88,6 @@ function areRenderedLinePropsEqual(prev: RenderedLineProps, next: RenderedLinePr
       prev.selectedBlockRange?.endCol !== next.selectedBlockRange?.endCol) return false;
 
   return true;
-}
-
-function getBulletChar(indentLevel: number): string {
-  return indentLevel % 2 === 1 ? "●" : "○";
 }
 
 function RenderedLineInner({
@@ -134,7 +172,6 @@ function RenderedLineInner({
           <SegmentRenderer
             key={idx}
             segment={segment}
-            lineIndex={lineIndex}
             isCursorLine={isCursorLine}
             cursorCol={adjustedCursorCol}
             cursorVisible={cursorVisible}
@@ -153,43 +190,8 @@ function RenderedLineInner({
 
 export const RenderedLine = memo(RenderedLineInner, areRenderedLinePropsEqual);
 
-interface SelectionInfo {
-  selStart: number;
-  selEnd: number;
-  cursorAtStart: boolean;
-  cursorAtEnd: boolean;
-  showLineEndSelection: boolean;
-}
-
-function getSelectionInfo(
-  lineIndex: number,
-  lineText: string,
-  anchor: CursorPosition,
-  cursor: CursorPosition
-): SelectionInfo | null {
-  const { start, end } = getSelectionBounds(anchor, cursor);
-  const isInSelection = lineIndex >= start.line && lineIndex <= end.line;
-
-  if (!isInSelection) {
-    return null;
-  }
-
-  const selStart = lineIndex === start.line ? start.col : 0;
-  const selEnd = lineIndex === end.line ? end.col : lineText.length;
-  const isCursorLine = lineIndex === cursor.line;
-
-  return {
-    selStart,
-    selEnd,
-    cursorAtStart: isCursorLine && cursor.col === selStart && posBefore(cursor, anchor),
-    cursorAtEnd: isCursorLine && cursor.col === selEnd && posBefore(anchor, cursor),
-    showLineEndSelection: lineIndex !== end.line,
-  };
-}
-
 interface SegmentRendererProps {
   segment: LineSegment;
-  lineIndex: number;
   isCursorLine: boolean;
   cursorCol: number;
   cursorVisible: boolean;
@@ -250,7 +252,7 @@ function SegmentRenderer({
       return (
         <>
           <span>{content.slice(0, relativeCursorCol)}</span>
-          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
+          <Cursor visible={cursorVisible} />
           <span>{content.slice(relativeCursorCol)}</span>
         </>
       );
@@ -279,16 +281,12 @@ function SegmentRenderer({
   return (
     <>
       <span>{beforeSel}</span>
-      {showCursorAtStart && (
-        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-      )}
+      {showCursorAtStart && <Cursor visible={cursorVisible} />}
       <span className="selection">
         {selected}
         {isLastSegmentInLine && <span className="selection-line-end" />}
       </span>
-      {showCursorAtEnd && (
-        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-      )}
+      {showCursorAtEnd && <Cursor visible={cursorVisible} />}
       <span>{afterSel}</span>
     </>
   );
@@ -316,15 +314,11 @@ function InlineLinkRenderer({
 
   return (
     <>
-      {showCursorBefore && (
-        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-      )}
+      {showCursorBefore && <Cursor visible={cursorVisible} />}
       <BrowserLink className="md-link" href={link.url}>
         {link.text}
       </BrowserLink>
-      {showCursorAfter && (
-        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-      )}
+      {showCursorAfter && <Cursor visible={cursorVisible} />}
     </>
   );
 }
@@ -390,9 +384,7 @@ function InlineJSXBlockRenderer({
         >
           [Error: {block.error || "Parse failed"}]
         </span>
-        {showCursorAfter && (
-          <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-        )}
+        {showCursorAfter && <Cursor visible={cursorVisible} />}
       </>
     );
   }
@@ -412,9 +404,7 @@ function InlineJSXBlockRenderer({
           onSelect={() => onBlockSelect?.(startCol, endCol)}
         />
       </span>
-      {showCursorAfter && (
-        <span className={`cursor ${cursorVisible ? "visible" : ""}`} />
-      )}
+      {showCursorAfter && <Cursor visible={cursorVisible} />}
     </>
   );
 }
