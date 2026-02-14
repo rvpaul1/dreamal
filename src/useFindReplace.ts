@@ -7,6 +7,7 @@ interface UseFindReplaceProps {
   document: Document;
   updateDocument: (doc: Document) => void;
   editorRef: React.RefObject<HTMLDivElement | null>;
+  getSelectedText: () => string;
 }
 
 export function useFindReplace({
@@ -14,9 +15,11 @@ export function useFindReplace({
   document,
   updateDocument,
   editorRef,
+  getSelectedText,
 }: UseFindReplaceProps) {
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   const [findReplaceShowReplace, setFindReplaceShowReplace] = useState(false);
+  const [initialSearchText, setInitialSearchText] = useState("");
 
   const handleFindReplaceClose = useCallback(() => {
     setFindReplaceOpen(false);
@@ -91,18 +94,27 @@ export function useFindReplace({
   }, []);
 
   const openFind = useCallback(() => {
+    const selected = getSelectedText();
+    if (selected && !selected.includes("\n")) {
+      setInitialSearchText(selected);
+    }
     setFindReplaceOpen(true);
     setFindReplaceShowReplace(false);
-  }, []);
+  }, [getSelectedText]);
 
   const openReplace = useCallback(() => {
+    const selected = getSelectedText();
+    if (selected && !selected.includes("\n")) {
+      setInitialSearchText(selected);
+    }
     setFindReplaceOpen(true);
     setFindReplaceShowReplace(true);
-  }, []);
+  }, [getSelectedText]);
 
   return {
     findReplaceOpen,
     findReplaceShowReplace,
+    initialSearchText,
     handleFindReplaceClose,
     handleFindReplaceNavigate,
     handleFindReplaceReplace,

@@ -9,6 +9,7 @@ interface FindReplaceMatch {
 interface FindReplaceProps {
   lines: string[];
   showReplace: boolean;
+  initialSearchText?: string;
   onClose: () => void;
   onNavigateToMatch: (line: number, col: number) => void;
   onReplace: (match: FindReplaceMatch, replacement: string) => void;
@@ -36,13 +37,14 @@ function findAllMatches(lines: string[], searchText: string): FindReplaceMatch[]
 export function FindReplace({
   lines,
   showReplace,
+  initialSearchText,
   onClose,
   onNavigateToMatch,
   onReplace,
   onReplaceAll,
   onToggleReplace,
 }: FindReplaceProps) {
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState(initialSearchText ?? "");
   const [replaceText, setReplaceText] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +53,7 @@ export function FindReplace({
 
   useEffect(() => {
     findInputRef.current?.focus();
+    findInputRef.current?.select();
   }, []);
 
   useEffect(() => {
@@ -134,6 +137,8 @@ export function FindReplace({
       fontSize: 14,
     }}
       onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <input
