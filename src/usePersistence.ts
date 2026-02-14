@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Document } from "./documentModel";
 import { serializeToMDX, getFilePath, updateModified } from "./documentModel";
 
@@ -109,6 +110,16 @@ export function usePersistence(
       }
     };
   }, []);
+
+  useEffect(() => {
+    const unlisten = listen("tauri://close-requested", () => {
+      flushSave();
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [flushSave]);
 
   const contentRef = useRef(document.editor.lines);
   useEffect(() => {

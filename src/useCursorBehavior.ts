@@ -8,6 +8,7 @@ interface UseCursorBehaviorProps {
   document: Document;
   updateDocument: (doc: Document) => void;
   lineRefs: React.MutableRefObject<Map<number, HTMLDivElement>>;
+  hiddenLines: Set<number>;
 }
 
 export function useCursorBehavior({
@@ -16,10 +17,15 @@ export function useCursorBehavior({
   document,
   updateDocument,
   lineRefs,
+  hiddenLines,
 }: UseCursorBehaviorProps) {
   const [cursorVisible, setCursorVisible] = useState(true);
   const prevCursorRef = useRef(cursor);
   const lastInputWasClickRef = useRef(false);
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
+  const documentRef = useRef(document);
+  documentRef.current = document;
 
   const isBlockSegment = useCallback(
     (seg: ReturnType<typeof parseLineSegments>[number]) =>
@@ -29,7 +35,7 @@ export function useCursorBehavior({
 
   const getInlineBlockAt = useCallback(
     (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
+      const lineText = linesRef.current[line];
       if (!lineText) return null;
 
       const segments = parseLineSegments(lineText);
@@ -40,12 +46,12 @@ export function useCursorBehavior({
       }
       return null;
     },
-    [lines, isBlockSegment]
+    []
   );
 
   const getInlineBlockEndingBefore = useCallback(
     (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
+      const lineText = linesRef.current[line];
       if (!lineText) return null;
 
       const segments = parseLineSegments(lineText);
@@ -56,12 +62,12 @@ export function useCursorBehavior({
       }
       return null;
     },
-    [lines, isBlockSegment]
+    []
   );
 
   const getInlineBlockStartingAfter = useCallback(
     (line: number, col: number): { startCol: number; endCol: number } | null => {
-      const lineText = lines[line];
+      const lineText = linesRef.current[line];
       if (!lineText) return null;
 
       const segments = parseLineSegments(lineText);
@@ -72,7 +78,7 @@ export function useCursorBehavior({
       }
       return null;
     },
-    [lines, isBlockSegment]
+    []
   );
 
   useEffect(() => {
@@ -93,6 +99,19 @@ export function useCursorBehavior({
     }
   }, [cursor.line, lineRefs]);
 
+  const prevHiddenLinesRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const wasCollapsed = prevHiddenLinesRef.current.size > 0;
+    const isExpanded = hiddenLines.size === 0;
+    if (wasCollapsed && isExpanded) {
+      const lineEl = lineRefs.current.get(cursor.line);
+      if (lineEl) {
+        lineEl.scrollIntoView({ block: "center" });
+      }
+    }
+    prevHiddenLinesRef.current = hiddenLines;
+  }, [hiddenLines, cursor.line, lineRefs]);
+
   useEffect(() => {
     const block = getInlineBlockAt(cursor.line, cursor.col);
     if (block) {
@@ -109,16 +128,17 @@ export function useCursorBehavior({
         newCol = movingRight ? block.endCol : block.startCol;
       }
 
+      const doc = documentRef.current;
       updateDocument({
-        ...document,
+        ...doc,
         editor: {
-          ...document.editor,
+          ...doc.editor,
           cursor: { line: cursor.line, col: newCol },
         },
       });
     }
     prevCursorRef.current = cursor;
-  }, [cursor, getInlineBlockAt, document, updateDocument]);
+  }, [cursor.line, cursor.col, getInlineBlockAt, updateDocument]);
 
   const markClickInput = useCallback(() => {
     lastInputWasClickRef.current = true;

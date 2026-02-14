@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Document } from "./documentModel";
-import { parseFromMDX, getFilePath } from "./documentModel";
+import { parseFromMDX, getFilePath, isContentBlank } from "./documentModel";
 
 interface NavigationState {
   entries: string[];
@@ -12,7 +12,7 @@ interface NavigationState {
 export function useEntryNavigation(
   document: Document,
   journalDir: string | null,
-  onLoadEntry: (doc: Document, filepath: string) => void,
+  updateDocument: (doc: Document) => void,
   flushSave: () => void
 ) {
   const [state, setState] = useState<NavigationState>({
@@ -22,6 +22,7 @@ export function useEntryNavigation(
   });
 
   const currentFilepathRef = useRef<string | null>(null);
+  const hasCheckedInitialEntry = useRef(false);
 
   useEffect(() => {
     if (journalDir) {
@@ -52,6 +53,30 @@ export function useEntryNavigation(
     }
   }, [journalDir, refreshEntries]);
 
+  useEffect(() => {
+    if (!journalDir || hasCheckedInitialEntry.current) return;
+    hasCheckedInitialEntry.current = true;
+
+    async function checkLatestEntry() {
+      try {
+        const entries = await invoke<string[]>("list_entries");
+        if (entries.length === 0) return;
+
+        const latestEntry = entries[entries.length - 1];
+        const content = await invoke<string>("read_entry", { filepath: latestEntry });
+
+        if (isContentBlank(content)) {
+          const doc = parseFromMDX(content, latestEntry);
+          updateDocument(doc);
+        }
+      } catch (err) {
+        console.error("Failed to check latest entry:", err);
+      }
+    }
+
+    checkLatestEntry();
+  }, [journalDir, updateDocument]);
+
   const loadEntry = useCallback(
     async (filepath: string) => {
       setState((prev) => ({ ...prev, isLoading: true }));
@@ -59,7 +84,7 @@ export function useEntryNavigation(
         const content = await invoke<string>("read_entry", { filepath });
         const doc = parseFromMDX(content, filepath);
         currentFilepathRef.current = filepath;
-        onLoadEntry(doc, filepath);
+        updateDocument(doc);
         setState((prev) => ({
           ...prev,
           currentIndex: prev.entries.indexOf(filepath),
@@ -70,7 +95,7 @@ export function useEntryNavigation(
         setState((prev) => ({ ...prev, isLoading: false }));
       }
     },
-    [onLoadEntry]
+    [updateDocument]
   );
 
   const navigatePrev = useCallback(async () => {

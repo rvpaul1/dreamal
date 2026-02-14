@@ -20,6 +20,7 @@ import {
   swapHeadingSectionUp,
   swapHeadingSectionDown,
   getHiddenLines,
+  getCollapsedHiddenLines,
   isHeadingLine,
   isCollapsedHeading,
   setCursor,
@@ -55,6 +56,16 @@ export function useEditorState() {
     }
     return collapsed;
   }, [document.editor.lines]);
+
+  const allHiddenLines = useMemo(() => {
+    const collapsedHidden = getCollapsedHiddenLines(document.editor.lines, collapsedHeadings);
+    const merged = new Set(hiddenLines);
+    for (const line of collapsedHidden) {
+      merged.add(line);
+    }
+    return merged;
+  }, [document.editor.lines, collapsedHeadings, hiddenLines]);
+
   const prevOptionHeldRef = useRef(false);
 
   const hasSelection = checkHasSelection(document.editor);
@@ -354,6 +365,7 @@ export function useEditorState() {
     hasSelection,
     hiddenLines,
     collapsedHeadings,
+    allHiddenLines,
     toggleHeadingCollapse,
     handleKeyDown,
     handleKeyUp,

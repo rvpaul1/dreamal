@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorState";
 import { BrowserLink } from "./components/BrowserLink";
 import { parseLineSegments, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment } from "./jsxBlocks";
@@ -20,11 +21,38 @@ interface RenderedLineProps {
   onBlockDelete?: (startCol: number, endCol: number) => void;
 }
 
+function areRenderedLinePropsEqual(prev: RenderedLineProps, next: RenderedLineProps): boolean {
+  if (prev.hasSelection || next.hasSelection) return false;
+
+  if (prev.lineText !== next.lineText) return false;
+
+  const prevIsCursorLine = prev.lineIndex === prev.cursor.line;
+  const nextIsCursorLine = next.lineIndex === next.cursor.line;
+
+  if (prevIsCursorLine !== nextIsCursorLine) return false;
+
+  if (nextIsCursorLine) {
+    if (prev.cursor.col !== next.cursor.col) return false;
+    if (prev.cursorVisible !== next.cursorVisible) return false;
+  }
+
+  if (prev.headingInfo?.level !== next.headingInfo?.level ||
+      prev.headingInfo?.prefixLength !== next.headingInfo?.prefixLength) return false;
+
+  if (prev.bulletInfo?.prefixLength !== next.bulletInfo?.prefixLength ||
+      prev.bulletInfo?.indentLevel !== next.bulletInfo?.indentLevel) return false;
+
+  if (prev.selectedBlockRange?.startCol !== next.selectedBlockRange?.startCol ||
+      prev.selectedBlockRange?.endCol !== next.selectedBlockRange?.endCol) return false;
+
+  return true;
+}
+
 function getBulletChar(indentLevel: number): string {
   return indentLevel % 2 === 1 ? "●" : "○";
 }
 
-export function RenderedLine({
+function RenderedLineInner({
   lineText,
   lineIndex,
   cursor,
@@ -122,6 +150,8 @@ export function RenderedLine({
     </>
   );
 }
+
+export const RenderedLine = memo(RenderedLineInner, areRenderedLinePropsEqual);
 
 interface SelectionInfo {
   selStart: number;
