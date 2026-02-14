@@ -9,8 +9,9 @@ interface FindReplaceMatch {
 interface FindReplaceProps {
   lines: string[];
   showReplace: boolean;
+  initialSearchText?: string;
   onClose: () => void;
-  onNavigateToMatch: (line: number, col: number) => void;
+  onNavigateToMatch: (line: number, startCol: number, endCol: number) => void;
   onReplace: (match: FindReplaceMatch, replacement: string) => void;
   onReplaceAll: (searchText: string, replacement: string) => void;
   onToggleReplace: () => void;
@@ -36,13 +37,14 @@ function findAllMatches(lines: string[], searchText: string): FindReplaceMatch[]
 export function FindReplace({
   lines,
   showReplace,
+  initialSearchText,
   onClose,
   onNavigateToMatch,
   onReplace,
   onReplaceAll,
   onToggleReplace,
 }: FindReplaceProps) {
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState(initialSearchText ?? "");
   const [replaceText, setReplaceText] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +53,7 @@ export function FindReplace({
 
   useEffect(() => {
     findInputRef.current?.focus();
+    findInputRef.current?.select();
   }, []);
 
   useEffect(() => {
@@ -58,7 +61,7 @@ export function FindReplace({
       const idx = Math.min(currentMatchIndex, matches.length - 1);
       setCurrentMatchIndex(idx);
       const match = matches[idx];
-      onNavigateToMatch(match.line, match.startCol);
+      onNavigateToMatch(match.line, match.startCol, match.endCol);
     }
   }, [searchText, lines]);
 
@@ -66,14 +69,14 @@ export function FindReplace({
     if (matches.length === 0) return;
     const next = (currentMatchIndex + 1) % matches.length;
     setCurrentMatchIndex(next);
-    onNavigateToMatch(matches[next].line, matches[next].startCol);
+    onNavigateToMatch(matches[next].line, matches[next].startCol, matches[next].endCol);
   }, [matches, currentMatchIndex, onNavigateToMatch]);
 
   const goToPrev = useCallback(() => {
     if (matches.length === 0) return;
     const prev = (currentMatchIndex - 1 + matches.length) % matches.length;
     setCurrentMatchIndex(prev);
-    onNavigateToMatch(matches[prev].line, matches[prev].startCol);
+    onNavigateToMatch(matches[prev].line, matches[prev].startCol, matches[prev].endCol);
   }, [matches, currentMatchIndex, onNavigateToMatch]);
 
   const handleReplace = useCallback(() => {
@@ -119,7 +122,7 @@ export function FindReplace({
 
   return (
     <div style={{
-      position: "absolute",
+      position: "fixed",
       top: 8,
       right: 8,
       background: "#2a2a2a",
@@ -134,6 +137,8 @@ export function FindReplace({
       fontSize: 14,
     }}
       onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <input

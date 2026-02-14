@@ -81,6 +81,7 @@ function Editor() {
   const {
     findReplaceOpen,
     findReplaceShowReplace,
+    initialSearchText,
     handleFindReplaceClose,
     handleFindReplaceNavigate,
     handleFindReplaceReplace,
@@ -88,7 +89,7 @@ function Editor() {
     handleToggleFindReplaceReplace,
     openFind,
     openReplace,
-  } = useFindReplace({ lines, document, updateDocument, editorRef });
+  } = useFindReplace({ lines, document, updateDocument, editorRef, getSelectedText: handleCopy });
 
   const {
     claudeModal,
@@ -252,6 +253,7 @@ function Editor() {
         <FindReplace
           lines={lines}
           showReplace={findReplaceShowReplace}
+          initialSearchText={initialSearchText}
           onClose={handleFindReplaceClose}
           onNavigateToMatch={handleFindReplaceNavigate}
           onReplace={handleFindReplaceReplace}
