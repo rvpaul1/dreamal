@@ -27,13 +27,13 @@ export function useFindReplace({
   }, [editorRef]);
 
   const handleFindReplaceNavigate = useCallback(
-    (line: number, col: number) => {
+    (line: number, startCol: number, endCol: number) => {
       updateDocument({
         ...document,
         editor: {
           ...document.editor,
-          cursor: { line, col },
-          selectionAnchor: null,
+          cursor: { line, col: endCol },
+          selectionAnchor: { line, col: startCol },
         },
       });
     },
