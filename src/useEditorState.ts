@@ -23,6 +23,8 @@ import {
   getCollapsedHiddenLines,
   isHeadingLine,
   isCollapsedHeading,
+  getScrollableLines,
+  removeScrollable as removeScrollablePrefix,
   setCursor,
   setCursorWithAnchor,
   selectAll,
@@ -55,6 +57,17 @@ export function useEditorState() {
       }
     }
     return collapsed;
+  }, [document.editor.lines]);
+
+  const scrollableHeadings = useMemo(() => {
+    const map = new Map<number, number>();
+    for (let i = 0; i < document.editor.lines.length; i++) {
+      const scrollLines = getScrollableLines(document.editor.lines[i]);
+      if (scrollLines != null) {
+        map.set(i, scrollLines);
+      }
+    }
+    return map;
   }, [document.editor.lines]);
 
   const allHiddenLines = useMemo(() => {
@@ -357,6 +370,18 @@ export function useEditorState() {
     });
   }, [updateEditorWithHistory]);
 
+  const removeScrollable = useCallback((lineIndex: number) => {
+    updateEditorWithHistory((state) => {
+      const line = state.lines[lineIndex];
+      if (!line) return state;
+      const newLine = removeScrollablePrefix(line);
+      if (newLine === line) return state;
+      const newLines = [...state.lines];
+      newLines[lineIndex] = newLine;
+      return { ...state, lines: newLines };
+    });
+  }, [updateEditorWithHistory]);
+
   return {
     document,
     lines: document.editor.lines,
@@ -365,8 +390,10 @@ export function useEditorState() {
     hasSelection,
     hiddenLines,
     collapsedHeadings,
+    scrollableHeadings,
     allHiddenLines,
     toggleHeadingCollapse,
+    removeScrollable,
     handleKeyDown,
     handleKeyUp,
     handleClickAt,

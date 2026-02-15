@@ -244,3 +244,44 @@ html, body, #root {
 .bullet-level-3 { width: calc(3 * 4ch); }
 .bullet-level-4 { width: calc(4 * 4ch); }
 .bullet-level-5 { width: calc(5 * 4ch); }
+
+.scrollable-section {
+  overflow-y: auto;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  margin-left: 30px;
+  padding: 4px 8px;
+}
+
+.scrollable-heading {
+  position: relative;
+}
+
+.scrollable-undo-pill {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #555;
+  color: #ccc;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+  user-select: none;
+}
+
+.scrollable-undo-pill.active,
+.scrollable-heading:hover .scrollable-undo-pill {
+  opacity: 0.7;
+}
+
+.scrollable-undo-pill:hover {
+  opacity: 1 !important;
+  background-color: #666;
+}

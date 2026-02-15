@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { Document } from "./documentModel";
 import type { CursorPosition } from "./useEditorState";
 import type { Macro, MacroContext } from "./macros";
+import { isHeadingLine, isScrollableHeading } from "./editorActions";
 
 interface UseMacroModalProps {
   lines: string[];
@@ -26,6 +27,43 @@ export function useMacroModal({
 
   const handleSelectMacro = useCallback(
     (macro: Macro, inputLength: number, context: MacroContext) => {
+      if (macro.scrollableLines != null) {
+        const { line, col } = cursor;
+        const currentLine = lines[line];
+        const beforeMacro = currentLine.slice(0, col - inputLength);
+        const afterCursor = currentLine.slice(col);
+        const lineWithoutMacro = beforeMacro + afterCursor;
+
+        if (!isHeadingLine(lineWithoutMacro)) {
+          return;
+        }
+
+        const prefix = `~S${macro.scrollableLines}~ `;
+        const stripped = isScrollableHeading(lineWithoutMacro)
+          ? lineWithoutMacro.replace(/^~S\d+~ /, "")
+          : lineWithoutMacro;
+        const newLineText = prefix + stripped;
+
+        const newLines = [...lines];
+        newLines[line] = newLineText;
+
+        const newCol = Math.min(
+          beforeMacro.length + (newLineText.length - lineWithoutMacro.length),
+          newLineText.length
+        );
+
+        updateDocument({
+          ...document,
+          editor: {
+            ...document.editor,
+            lines: newLines,
+            cursor: { line, col: newCol },
+            selectionAnchor: null,
+          },
+        });
+        return;
+      }
+
       if (macro.trigger === "/claude") {
         const lineText = context.lineRawText;
         const instructionsEndIndex = lineText.length - inputLength;

@@ -6,6 +6,7 @@ export interface Macro {
   trigger: string;
   expand?: (args?: Record<string, unknown>) => string;
   onSelect?: (context: MacroContext) => void;
+  scrollableLines?: number;
 }
 
 function formatFullDate(date: Date): string {
@@ -59,6 +60,22 @@ export const macros: Macro[] = [
       const sessionId = args?.sessionId as string;
       return `{{{JSX:<ClaudeStatus sessionId="${sessionId}" />}}}`;
     },
+  },
+  {
+    trigger: "/scrollable",
+    scrollableLines: 20,
+  },
+  {
+    trigger: "/scrollable5",
+    scrollableLines: 5,
+  },
+  {
+    trigger: "/scrollable10",
+    scrollableLines: 10,
+  },
+  {
+    trigger: "/scrollable20",
+    scrollableLines: 20,
   },
 ];
 
