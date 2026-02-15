@@ -646,14 +646,30 @@ export function outdentBullet(state: EditorState): EditorState {
   };
 }
 
-const HEADING_REGEX = /^(?:\^ )?(#{1,6}) /;
+const HEADING_REGEX = /^(?:~S(\d+)~ )?(?:\^ )?(#{1,6}) /;
 
 export function getHeadingLevel(line: string): number {
   const match = line.match(HEADING_REGEX);
   if (match) {
-    return match[1].length;
+    return match[2].length;
   }
   return Infinity;
+}
+
+export function getScrollableLines(line: string): number | null {
+  const match = line.match(HEADING_REGEX);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  return null;
+}
+
+export function isScrollableHeading(line: string): boolean {
+  return /^~S\d+~ /.test(line);
+}
+
+export function removeScrollable(line: string): string {
+  return line.replace(/^~S\d+~ /, "");
 }
 
 export function isHeadingLine(line: string): boolean {
@@ -661,7 +677,7 @@ export function isHeadingLine(line: string): boolean {
 }
 
 export function isCollapsedHeading(line: string): boolean {
-  return /^\^ #{1,6} /.test(line);
+  return /^(?:~S\d+~ )?\^ #{1,6} /.test(line);
 }
 
 export function getHiddenLines(
@@ -721,7 +737,7 @@ export function getCollapsedHiddenLines(
   return hidden;
 }
 
-function getHeadingSectionRange(
+export function getHeadingSectionRange(
   lines: string[],
   headingLine: number
 ): { start: number; end: number } {

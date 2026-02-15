@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { useEditorState } from "./useEditorState";
 import { usePersistence } from "./usePersistence";
 import { useEntryNavigation } from "./useEntryNavigation";
@@ -15,6 +15,7 @@ import { ClaudeDelegateModal } from "./components/ClaudeDelegateModal";
 import { FindReplace } from "./FindReplace";
 import { RenderedLine } from "./RenderedLine";
 import { LineGutter } from "./LineGutter";
+import { getHeadingSectionRange } from "./editorActions";
 
 function Editor() {
   const {
@@ -25,8 +26,10 @@ function Editor() {
     hasSelection,
     hiddenLines,
     collapsedHeadings,
+    scrollableHeadings,
     allHiddenLines,
     toggleHeadingCollapse,
+    removeScrollable,
     handleKeyDown: handleEditorKeyDown,
     handleKeyUp: handleEditorKeyUp,
     handleClickAt,
@@ -165,6 +168,83 @@ function Editor() {
     editorRef.current?.focus();
   }, []);
 
+  const { scrollableSections, scrollableSectionLines } = useMemo(() => {
+    const sections = new Map<number, { endLine: number; scrollLines: number }>();
+    const sectionLines = new Set<number>();
+    for (const [headingLine, scrollLines] of scrollableHeadings) {
+      const range = getHeadingSectionRange(lines, headingLine);
+      if (range.end > headingLine) {
+        sections.set(headingLine, { endLine: range.end, scrollLines });
+        for (let i = headingLine + 1; i <= range.end; i++) {
+          sectionLines.add(i);
+        }
+      }
+    }
+    return { scrollableSections: sections, scrollableSectionLines: sectionLines };
+  }, [lines, scrollableHeadings]);
+
+  const renderLine = (lineText: string, lineIndex: number) => {
+    const headingInfo = getHeadingInfo(lineIndex);
+    const isScrollableHead = scrollableSections.has(lineIndex);
+    return (
+      <div
+        key={lineIndex}
+        className={`${getLineClass(lineIndex)}${isScrollableHead ? " scrollable-heading" : ""}`}
+        ref={(el) => {
+          if (el) {
+            lineRefs.current.set(lineIndex, el);
+          } else {
+            lineRefs.current.delete(lineIndex);
+          }
+        }}
+      >
+        <LineGutter
+          headingInfo={headingInfo}
+          isCollapsed={collapsedHeadings.has(lineIndex)}
+          onToggleCollapse={() => toggleHeadingCollapse(lineIndex)}
+        />
+        <div className="line-content">
+          <RenderedLine
+            lineText={lineText}
+            lineIndex={lineIndex}
+            cursor={cursor}
+            selectionAnchor={selectionAnchor}
+            hasSelection={hasSelection}
+            cursorVisible={cursorVisible}
+            headingInfo={headingInfo}
+            bulletInfo={getBulletInfo(lineIndex)}
+            onBlockSelect={(startCol, endCol) =>
+              handleBlockSelect(lineIndex, startCol, endCol)
+            }
+            selectedBlockRange={
+              selectedBlockRange?.line === lineIndex
+                ? selectedBlockRange
+                : null
+            }
+            onBlockStateChange={(startCol, endCol, newComponent) =>
+              handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
+            }
+            onBlockDelete={(startCol, endCol) =>
+              handleBlockDelete(lineIndex, startCol, endCol)
+            }
+          />
+        </div>
+        {isScrollableHead && (
+          <span
+            className={`scrollable-undo-pill${cursor.line === lineIndex ? " active" : ""}`}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              removeScrollable(lineIndex);
+            }}
+          >
+            ...
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={editorRef}
@@ -187,52 +267,32 @@ function Editor() {
           if (allHiddenLines.has(lineIndex)) {
             return null;
           }
-          const headingInfo = getHeadingInfo(lineIndex);
-          return (
-            <div
-              key={lineIndex}
-              className={getLineClass(lineIndex)}
-              ref={(el) => {
-                if (el) {
-                  lineRefs.current.set(lineIndex, el);
-                } else {
-                  lineRefs.current.delete(lineIndex);
-                }
-              }}
-            >
-              <LineGutter
-                headingInfo={headingInfo}
-                isCollapsed={collapsedHeadings.has(lineIndex)}
-                onToggleCollapse={() => toggleHeadingCollapse(lineIndex)}
-              />
-              <div className="line-content">
-                <RenderedLine
-                  lineText={lineText}
-                  lineIndex={lineIndex}
-                  cursor={cursor}
-                  selectionAnchor={selectionAnchor}
-                  hasSelection={hasSelection}
-                  cursorVisible={cursorVisible}
-                  headingInfo={headingInfo}
-                  bulletInfo={getBulletInfo(lineIndex)}
-                  onBlockSelect={(startCol, endCol) =>
-                    handleBlockSelect(lineIndex, startCol, endCol)
-                  }
-                  selectedBlockRange={
-                    selectedBlockRange?.line === lineIndex
-                      ? selectedBlockRange
-                      : null
-                  }
-                  onBlockStateChange={(startCol, endCol, newComponent) =>
-                    handleBlockStateChange(lineIndex, startCol, endCol, newComponent)
-                  }
-                  onBlockDelete={(startCol, endCol) =>
-                    handleBlockDelete(lineIndex, startCol, endCol)
-                  }
-                />
+          if (scrollableSectionLines.has(lineIndex)) {
+            return null;
+          }
+
+          const sectionInfo = scrollableSections.get(lineIndex);
+          if (sectionInfo) {
+            const lineHeight = 27;
+            const maxHeight = sectionInfo.scrollLines * lineHeight;
+            return (
+              <div key={lineIndex}>
+                {renderLine(lineText, lineIndex)}
+                <div
+                  className="scrollable-section"
+                  style={{ maxHeight }}
+                >
+                  {lines.slice(lineIndex + 1, sectionInfo.endLine + 1).map((contentText, i) => {
+                    const contentLineIndex = lineIndex + 1 + i;
+                    if (allHiddenLines.has(contentLineIndex)) return null;
+                    return renderLine(contentText, contentLineIndex);
+                  })}
+                </div>
               </div>
-            </div>
-          );
+            );
+          }
+
+          return renderLine(lineText, lineIndex);
         })}
       </div>
       {showAutocomplete && (
