@@ -263,19 +263,19 @@ function Editor() {
               handleBlockDelete(lineIndex, startCol, endCol)
             }
           />
+          {isScrollableHead && (
+            <span
+              className={`scrollable-undo-pill${cursor.line === lineIndex ? " active" : ""}`}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                removeScrollable(lineIndex);
+              }}
+            >
+              ...
+            </span>
+          )}
         </div>
-        {isScrollableHead && (
-          <span
-            className={`scrollable-undo-pill${cursor.line === lineIndex ? " active" : ""}`}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              removeScrollable(lineIndex);
-            }}
-          >
-            ...
-          </span>
-        )}
       </div>
     );
   };

@@ -255,15 +255,9 @@ html, body, #root {
   padding: 4px 8px;
 }
 
-.scrollable-heading {
-  position: relative;
-}
-
 .scrollable-undo-pill {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  display: inline;
+  margin-left: 6px;
   background-color: #555;
   color: #ccc;
   padding: 0 6px;
