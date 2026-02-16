@@ -13,6 +13,7 @@ interface UseBlockManipulationProps {
   cursor: CursorPosition;
   document: Document;
   updateDocument: (doc: Document) => void;
+  updateLineContent: (lineIndex: number, updater: (lineText: string) => string) => void;
 }
 
 export function useBlockManipulation({
@@ -20,6 +21,7 @@ export function useBlockManipulation({
   cursor,
   document,
   updateDocument,
+  updateLineContent,
 }: UseBlockManipulationProps) {
   const [selectedBlockRange, setSelectedBlockRange] = useState<SelectedBlockRange | null>(null);
 
@@ -33,24 +35,12 @@ export function useBlockManipulation({
 
   const handleBlockStateChange = useCallback(
     (lineIndex: number, startCol: number, endCol: number, newComponent: ParsedComponent) => {
-      const lineText = lines[lineIndex];
       const newBlockStr = `{{{JSX:${serializeComponent(newComponent)}}}}`;
-      const newLineText =
-        lineText.slice(0, startCol) + newBlockStr + lineText.slice(endCol);
-
-      const newLines = [...lines];
-      newLines[lineIndex] = newLineText;
-
-      updateDocument({
-        ...document,
-        editor: {
-          ...document.editor,
-          lines: newLines,
-          cursor: { line: lineIndex, col: startCol + newBlockStr.length },
-        },
-      });
+      updateLineContent(lineIndex, (lineText) =>
+        lineText.slice(0, startCol) + newBlockStr + lineText.slice(endCol)
+      );
     },
-    [document, lines, updateDocument]
+    [updateLineContent]
   );
 
   const handleBlockDelete = useCallback(

@@ -40,6 +40,7 @@ function Editor() {
     handlePaste,
     handleCopy,
     updateDocument,
+    updateLineContent,
     updateMetadata,
     applyMacro,
   } = useEditorState();
@@ -72,6 +73,7 @@ function Editor() {
     cursor,
     document,
     updateDocument,
+    updateLineContent,
   });
 
   const { navigatePrev, navigateNext, hasPrev, hasNext } = useEntryNavigation(

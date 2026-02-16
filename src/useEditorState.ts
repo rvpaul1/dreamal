@@ -300,6 +300,24 @@ export function useEditorState() {
     clearHistory();
   }, [clearHistory]);
 
+  const updateLineContent = useCallback(
+    (lineIndex: number, updater: (lineText: string) => string) => {
+      setDocument((doc) => {
+        const oldLine = doc.editor.lines[lineIndex];
+        if (oldLine == null) return doc;
+        const newLine = updater(oldLine);
+        if (newLine === oldLine) return doc;
+        const newLines = [...doc.editor.lines];
+        newLines[lineIndex] = newLine;
+        return {
+          ...doc,
+          editor: { ...doc.editor, lines: newLines },
+        };
+      });
+    },
+    []
+  );
+
   const updateMetadata = useCallback((metadata: Document["metadata"]) => {
     setDocument((doc) => ({ ...doc, metadata }));
   }, []);
@@ -411,6 +429,7 @@ export function useEditorState() {
     handlePaste,
     handleCopy,
     updateDocument,
+    updateLineContent,
     updateMetadata,
     applyMacro,
   };
