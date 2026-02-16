@@ -1351,6 +1351,40 @@ describe("Heading Functions", () => {
     });
   });
 
+  describe("scrollable + collapsed combined", () => {
+    it("isCollapsedHeading recognizes scrollable collapsed heading", () => {
+      expect(isCollapsedHeading("~S5~ ^ ## Section")).toBe(true);
+    });
+
+    it("isCollapsedHeading returns false for scrollable non-collapsed heading", () => {
+      expect(isCollapsedHeading("~S5~ ## Section")).toBe(false);
+    });
+
+    it("getHeadingLevel returns correct level for scrollable collapsed heading", () => {
+      expect(getHeadingLevel("~S5~ ^ ## Section")).toBe(2);
+      expect(getHeadingLevel("~S10~ ^ # Title")).toBe(1);
+    });
+
+    it("isHeadingLine returns true for scrollable collapsed heading", () => {
+      expect(isHeadingLine("~S5~ ^ ## Section")).toBe(true);
+    });
+
+    it("getCollapsedHiddenLines works with scrollable collapsed heading", () => {
+      const lines = [
+        "~S5~ ^ ## Section A",
+        "content A",
+        "### Sub A",
+        "## Section B",
+      ];
+      const collapsed = new Set([0]);
+      const hidden = getCollapsedHiddenLines(lines, collapsed);
+      expect(hidden.has(0)).toBe(false);
+      expect(hidden.has(1)).toBe(true);
+      expect(hidden.has(2)).toBe(true);
+      expect(hidden.has(3)).toBe(false);
+    });
+  });
+
   describe("parseMarkdownLinks", () => {
     it("returns empty array for text without links", () => {
       expect(parseMarkdownLinks("hello world")).toEqual([]);

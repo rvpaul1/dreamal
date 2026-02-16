@@ -360,9 +360,19 @@ export function useEditorState() {
       if (!line) return state;
       const newLines = [...state.lines];
       if (isCollapsedHeading(line)) {
-        newLines[lineIndex] = line.slice(2);
+        const scrollableMatch = line.match(/^(~S\d+~ )\^ /);
+        if (scrollableMatch) {
+          newLines[lineIndex] = scrollableMatch[1] + line.slice(scrollableMatch[0].length);
+        } else {
+          newLines[lineIndex] = line.slice(2);
+        }
       } else if (isHeadingLine(line)) {
-        newLines[lineIndex] = "^ " + line;
+        const scrollableMatch = line.match(/^(~S\d+~ )/);
+        if (scrollableMatch) {
+          newLines[lineIndex] = scrollableMatch[1] + "^ " + line.slice(scrollableMatch[0].length);
+        } else {
+          newLines[lineIndex] = "^ " + line;
+        }
       } else {
         return state;
       }
