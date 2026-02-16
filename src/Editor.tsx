@@ -122,6 +122,7 @@ function Editor() {
     handleMouseDown: baseHandleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    getPositionFromPoint,
   } = useMouseSelection({
     lines,
     lineRefs,
@@ -140,7 +141,7 @@ function Editor() {
     [baseHandleMouseDown, markClickInput]
   );
 
-  const { handleKeyDown, handlePasteEvent, handleCopyEvent } = useKeyboardHandling({
+  const { handleKeyDown: baseHandleKeyDown, handlePasteEvent, handleCopyEvent } = useKeyboardHandling({
     cursor,
     hasSelection,
     hiddenLines,
@@ -163,6 +164,42 @@ function Editor() {
     onOpenFind: openFind,
     onOpenReplace: openReplace,
   });
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (
+        (e.key === "ArrowUp" || e.key === "ArrowDown") &&
+        !e.metaKey &&
+        !e.altKey &&
+        !e.ctrlKey
+      ) {
+        const cursorEl = editorRef.current?.querySelector(".cursor");
+        if (cursorEl) {
+          const cursorRect = cursorEl.getBoundingClientRect();
+          const lineHeight = 27;
+          const x = cursorRect.left + 1;
+          const cursorMidY = (cursorRect.top + cursorRect.bottom) / 2;
+          const y =
+            e.key === "ArrowUp"
+              ? cursorMidY - lineHeight
+              : cursorMidY + lineHeight;
+          const newPos = getPositionFromPoint(x, y);
+          if (newPos && (newPos.line !== cursor.line || newPos.col !== cursor.col)) {
+            e.preventDefault();
+            markKeyInput();
+            if (e.shiftKey) {
+              handleDragTo(newPos, selectionAnchor ?? cursor);
+            } else {
+              handleClickAt(newPos);
+            }
+            return;
+          }
+        }
+      }
+      baseHandleKeyDown(e);
+    },
+    [baseHandleKeyDown, getPositionFromPoint, cursor, selectionAnchor, handleClickAt, handleDragTo, markKeyInput]
+  );
 
   useEffect(() => {
     editorRef.current?.focus();

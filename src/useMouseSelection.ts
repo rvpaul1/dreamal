@@ -224,5 +224,6 @@ export function useMouseSelection({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    getPositionFromPoint,
   };
 }
