@@ -40,6 +40,7 @@ function Editor() {
     handlePaste,
     handleCopy,
     updateDocument,
+    updateLineContent,
     updateMetadata,
     applyMacro,
   } = useEditorState();
@@ -72,6 +73,7 @@ function Editor() {
     cursor,
     document,
     updateDocument,
+    updateLineContent,
   });
 
   const { navigatePrev, navigateNext, hasPrev, hasNext } = useEntryNavigation(
@@ -193,6 +195,9 @@ function Editor() {
 
     const sectionInfo = scrollableSections.get(lineIndex);
     if (sectionInfo) {
+      if (collapsedHeadings.has(lineIndex)) {
+        return renderLine(lineText, lineIndex);
+      }
       const lineHeight = 27;
       const maxHeight = sectionInfo.scrollLines * lineHeight;
       return (

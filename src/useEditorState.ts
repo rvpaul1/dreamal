@@ -300,6 +300,24 @@ export function useEditorState() {
     clearHistory();
   }, [clearHistory]);
 
+  const updateLineContent = useCallback(
+    (lineIndex: number, updater: (lineText: string) => string) => {
+      setDocument((doc) => {
+        const oldLine = doc.editor.lines[lineIndex];
+        if (oldLine == null) return doc;
+        const newLine = updater(oldLine);
+        if (newLine === oldLine) return doc;
+        const newLines = [...doc.editor.lines];
+        newLines[lineIndex] = newLine;
+        return {
+          ...doc,
+          editor: { ...doc.editor, lines: newLines },
+        };
+      });
+    },
+    []
+  );
+
   const updateMetadata = useCallback((metadata: Document["metadata"]) => {
     setDocument((doc) => ({ ...doc, metadata }));
   }, []);
@@ -360,9 +378,19 @@ export function useEditorState() {
       if (!line) return state;
       const newLines = [...state.lines];
       if (isCollapsedHeading(line)) {
-        newLines[lineIndex] = line.slice(2);
+        const scrollableMatch = line.match(/^(~S\d+~ )\^ /);
+        if (scrollableMatch) {
+          newLines[lineIndex] = scrollableMatch[1] + line.slice(scrollableMatch[0].length);
+        } else {
+          newLines[lineIndex] = line.slice(2);
+        }
       } else if (isHeadingLine(line)) {
-        newLines[lineIndex] = "^ " + line;
+        const scrollableMatch = line.match(/^(~S\d+~ )/);
+        if (scrollableMatch) {
+          newLines[lineIndex] = scrollableMatch[1] + "^ " + line.slice(scrollableMatch[0].length);
+        } else {
+          newLines[lineIndex] = "^ " + line;
+        }
       } else {
         return state;
       }
@@ -401,6 +429,7 @@ export function useEditorState() {
     handlePaste,
     handleCopy,
     updateDocument,
+    updateLineContent,
     updateMetadata,
     applyMacro,
   };
