@@ -18,6 +18,9 @@ import { LineGutter } from "./LineGutter";
 import { getHeadingSectionRange } from "./editorActions";
 
 function Editor() {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
   const {
     document,
     lines,
@@ -40,9 +43,6 @@ function Editor() {
     updateMetadata,
     applyMacro,
   } = useEditorState();
-
-  const editorRef = useRef<HTMLDivElement>(null);
-  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const { saveState, flushSave, journalDir } = usePersistence(document, updateMetadata);
 
@@ -183,6 +183,38 @@ function Editor() {
     return { scrollableSections: sections, scrollableSectionLines: sectionLines };
   }, [lines, scrollableHeadings]);
 
+  const renderLineEntry = (lineText: string, lineIndex: number) => {
+    if (allHiddenLines.has(lineIndex)) {
+      return null;
+    }
+    if (scrollableSectionLines.has(lineIndex)) {
+      return null;
+    }
+
+    const sectionInfo = scrollableSections.get(lineIndex);
+    if (sectionInfo) {
+      const lineHeight = 27;
+      const maxHeight = sectionInfo.scrollLines * lineHeight;
+      return (
+        <div key={lineIndex}>
+          {renderLine(lineText, lineIndex)}
+          <div
+            className="scrollable-section"
+            style={{ maxHeight }}
+          >
+            {lines.slice(lineIndex + 1, sectionInfo.endLine + 1).map((contentText, i) => {
+              const contentLineIndex = lineIndex + 1 + i;
+              if (allHiddenLines.has(contentLineIndex)) return null;
+              return renderLine(contentText, contentLineIndex);
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return renderLine(lineText, lineIndex);
+  };
+
   const renderLine = (lineText: string, lineIndex: number) => {
     const headingInfo = getHeadingInfo(lineIndex);
     const isScrollableHead = scrollableSections.has(lineIndex);
@@ -263,37 +295,7 @@ function Editor() {
         <div className="save-error">Save failed: {saveState.error}</div>
       )}
       <div className="editor-content">
-        {lines.map((lineText, lineIndex) => {
-          if (allHiddenLines.has(lineIndex)) {
-            return null;
-          }
-          if (scrollableSectionLines.has(lineIndex)) {
-            return null;
-          }
-
-          const sectionInfo = scrollableSections.get(lineIndex);
-          if (sectionInfo) {
-            const lineHeight = 27;
-            const maxHeight = sectionInfo.scrollLines * lineHeight;
-            return (
-              <div key={lineIndex}>
-                {renderLine(lineText, lineIndex)}
-                <div
-                  className="scrollable-section"
-                  style={{ maxHeight }}
-                >
-                  {lines.slice(lineIndex + 1, sectionInfo.endLine + 1).map((contentText, i) => {
-                    const contentLineIndex = lineIndex + 1 + i;
-                    if (allHiddenLines.has(contentLineIndex)) return null;
-                    return renderLine(contentText, contentLineIndex);
-                  })}
-                </div>
-              </div>
-            );
-          }
-
-          return renderLine(lineText, lineIndex);
-        })}
+        {lines.map(renderLineEntry)}
       </div>
       {showAutocomplete && (
         <MacroAutocomplete

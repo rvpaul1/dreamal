@@ -243,7 +243,36 @@ function SegmentRenderer({
     );
   }
 
-  const { content, startCol, endCol } = segment;
+  return (
+    <TextSegmentRenderer
+      content={segment.content}
+      startCol={segment.startCol}
+      endCol={segment.endCol}
+      isCursorLine={isCursorLine}
+      cursorCol={cursorCol}
+      cursorVisible={cursorVisible}
+      selectionInfo={selectionInfo}
+    />
+  );
+}
+
+function TextSegmentRenderer({
+  content,
+  startCol,
+  endCol,
+  isCursorLine,
+  cursorCol,
+  cursorVisible,
+  selectionInfo,
+}: {
+  content: string;
+  startCol: number;
+  endCol: number;
+  isCursorLine: boolean;
+  cursorCol: number;
+  cursorVisible: boolean;
+  selectionInfo: SelectionInfo | null;
+}) {
   const cursorInSegment = isCursorLine && cursorCol >= startCol && cursorCol <= endCol;
   const relativeCursorCol = cursorCol - startCol;
 
