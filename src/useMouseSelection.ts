@@ -89,11 +89,24 @@ export function useMouseSelection({
       if (!refs) return null;
 
       let targetLine = -1;
-      for (const [lineIndex, el] of refs.entries()) {
-        const rect = el.getBoundingClientRect();
-        if (clientY >= rect.top && clientY <= rect.bottom) {
-          targetLine = lineIndex;
-          break;
+
+      const hitEl = document.elementFromPoint(clientX, clientY);
+      if (hitEl) {
+        for (const [lineIndex, el] of refs.entries()) {
+          if (el === hitEl || el.contains(hitEl)) {
+            targetLine = lineIndex;
+            break;
+          }
+        }
+      }
+
+      if (targetLine === -1) {
+        for (const [lineIndex, el] of refs.entries()) {
+          const rect = el.getBoundingClientRect();
+          if (clientY >= rect.top && clientY <= rect.bottom) {
+            targetLine = lineIndex;
+            break;
+          }
         }
       }
 

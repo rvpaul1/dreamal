@@ -174,8 +174,12 @@ function Editor() {
     for (const [headingLine, scrollLines] of scrollableHeadings) {
       const range = getHeadingSectionRange(lines, headingLine);
       if (range.end > headingLine) {
-        sections.set(headingLine, { endLine: range.end, scrollLines });
-        for (let i = headingLine + 1; i <= range.end; i++) {
+        let contentEnd = range.end;
+        while (contentEnd > headingLine && lines[contentEnd].trim() === "") {
+          contentEnd--;
+        }
+        sections.set(headingLine, { endLine: contentEnd, scrollLines });
+        for (let i = headingLine + 1; i <= contentEnd; i++) {
           sectionLines.add(i);
         }
       }
