@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorState";
 import { BrowserLink } from "./components/BrowserLink";
-import { parseLineSegments, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment, type InlineFormatSegment } from "./jsxBlocks";
+import { parseLineSegments, splitTextWithFormats, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment, type InlineFormatSegment } from "./jsxBlocks";
 import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
 import type { BulletInfo } from "./useMarkdown";
@@ -364,59 +364,64 @@ function InlineFormatRenderer({
   const contentStart = startCol + markerLen;
   const contentEnd = endCol - markerLen;
 
+  const innerSegments = splitTextWithFormats({
+    type: "text",
+    content: format.content,
+    startCol: contentStart,
+    endCol: contentEnd,
+  });
+
+  const styledContent = (
+    <span className={className}>
+      {innerSegments.map((seg, idx) => {
+        if (seg.type === "format") {
+          return (
+            <InlineFormatRenderer
+              key={idx}
+              format={seg.format}
+              startCol={seg.startCol}
+              endCol={seg.endCol}
+              isCursorLine={isCursorLine}
+              cursorCol={cursorCol}
+              cursorVisible={cursorVisible}
+              selectionInfo={selectionInfo}
+            />
+          );
+        }
+        if (seg.type === "text") {
+          return (
+            <TextSegmentRenderer
+              key={idx}
+              content={seg.content}
+              startCol={seg.startCol}
+              endCol={seg.endCol}
+              isCursorLine={isCursorLine}
+              cursorCol={cursorCol}
+              cursorVisible={cursorVisible}
+              selectionInfo={selectionInfo}
+            />
+          );
+        }
+        return null;
+      })}
+    </span>
+  );
+
   if (!isCursorLine) {
-    if (!selectionInfo) {
-      return <span className={className}>{format.content}</span>;
-    }
-
-    const { selStart, selEnd, showLineEndSelection } = selectionInfo;
-    const segSelStart = Math.max(selStart - contentStart, 0);
-    const segSelEnd = Math.min(selEnd - contentStart, format.content.length);
-    const hasSelectionInContent = segSelEnd > segSelStart && selStart < contentEnd && selEnd > contentStart;
-
-    if (!hasSelectionInContent) {
-      return <span className={className}>{format.content}</span>;
-    }
-
-    const beforeSel = format.content.slice(0, segSelStart);
-    const selected = format.content.slice(segSelStart, segSelEnd);
-    const afterSel = format.content.slice(segSelEnd);
-    const isLastPart = showLineEndSelection && segSelEnd === format.content.length;
-
-    return (
-      <span className={className}>
-        <span>{beforeSel}</span>
-        <span className="selection">
-          {selected}
-          {isLastPart && <span className="selection-line-end" />}
-        </span>
-        <span>{afterSel}</span>
-      </span>
-    );
+    return styledContent;
   }
-
-  const openMarkerStart = startCol;
-  const openMarkerEnd = contentStart;
-  const closeMarkerStart = contentEnd;
-  const closeMarkerEnd = endCol;
 
   const markerText = format.content.length > 0
     ? (format.format === "bold" ? "**" : format.format === "italic" ? "*" : format.format === "underline" ? "__" : "~~")
     : "";
 
-  const renderSpan = (text: string, spanStartCol: number, spanEndCol: number, applyFormat: boolean) => {
-    const cursorInSpan = cursorCol >= spanStartCol && cursorCol <= spanEndCol;
-    const relativeCursor = cursorCol - spanStartCol;
+  const renderMarker = (text: string, markerStart: number, markerEnd: number) => {
+    const cursorInMarker = cursorCol >= markerStart && cursorCol <= markerEnd;
+    const relativeCursor = cursorCol - markerStart;
 
     if (!selectionInfo) {
-      if (cursorInSpan) {
-        return applyFormat ? (
-          <span className={className}>
-            <span>{text.slice(0, relativeCursor)}</span>
-            <Cursor visible={cursorVisible} />
-            <span>{text.slice(relativeCursor)}</span>
-          </span>
-        ) : (
+      if (cursorInMarker) {
+        return (
           <span className="md-format-marker">
             <span>{text.slice(0, relativeCursor)}</span>
             <Cursor visible={cursorVisible} />
@@ -424,31 +429,27 @@ function InlineFormatRenderer({
           </span>
         );
       }
-      return applyFormat
-        ? <span className={className}>{text}</span>
-        : <span className="md-format-marker">{text}</span>;
+      return <span className="md-format-marker">{text}</span>;
     }
 
     const { selStart, selEnd, cursorAtStart, cursorAtEnd, showLineEndSelection } = selectionInfo;
-    const segSelStart = Math.max(selStart - spanStartCol, 0);
-    const segSelEnd = Math.min(selEnd - spanStartCol, text.length);
-    const hasSelectionInSpan = segSelEnd > segSelStart && selStart < spanEndCol && selEnd > spanStartCol;
+    const segSelStart = Math.max(selStart - markerStart, 0);
+    const segSelEnd = Math.min(selEnd - markerStart, text.length);
+    const hasSelInMarker = segSelEnd > segSelStart && selStart < markerEnd && selEnd > markerStart;
 
-    if (!hasSelectionInSpan) {
-      return applyFormat
-        ? <span className={className}>{text}</span>
-        : <span className="md-format-marker">{text}</span>;
+    if (!hasSelInMarker) {
+      return <span className="md-format-marker">{text}</span>;
     }
 
     const beforeSel = text.slice(0, segSelStart);
     const selected = text.slice(segSelStart, segSelEnd);
     const afterSel = text.slice(segSelEnd);
-    const showCursorAtStart = cursorAtStart && selStart >= spanStartCol && selStart <= spanEndCol;
-    const showCursorAtEnd = cursorAtEnd && selEnd >= spanStartCol && selEnd <= spanEndCol;
-    const isLastPart = showLineEndSelection && spanEndCol === endCol && segSelEnd === text.length;
+    const showCursorAtStart = cursorAtStart && selStart >= markerStart && selStart <= markerEnd;
+    const showCursorAtEnd = cursorAtEnd && selEnd >= markerStart && selEnd <= markerEnd;
+    const isLastPart = showLineEndSelection && markerEnd === endCol && segSelEnd === text.length;
 
-    const inner = (
-      <>
+    return (
+      <span className="md-format-marker">
         <span>{beforeSel}</span>
         {showCursorAtStart && <Cursor visible={cursorVisible} />}
         <span className="selection">
@@ -457,19 +458,15 @@ function InlineFormatRenderer({
         </span>
         {showCursorAtEnd && <Cursor visible={cursorVisible} />}
         <span>{afterSel}</span>
-      </>
+      </span>
     );
-
-    return applyFormat
-      ? <span className={className}>{inner}</span>
-      : <span className="md-format-marker">{inner}</span>;
   };
 
   return (
     <>
-      {renderSpan(markerText, openMarkerStart, openMarkerEnd, false)}
-      {renderSpan(format.content, contentStart, contentEnd, true)}
-      {renderSpan(markerText, closeMarkerStart, closeMarkerEnd, false)}
+      {renderMarker(markerText, startCol, contentStart)}
+      {styledContent}
+      {renderMarker(markerText, contentEnd, endCol)}
     </>
   );
 }

@@ -417,7 +417,7 @@ const INLINE_FORMAT_PATTERNS: { pattern: RegExp; format: InlineFormatType; marke
   { pattern: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, format: "italic", markerLength: 1 },
 ];
 
-function splitTextWithFormats(textSegment: { type: "text"; content: string; startCol: number; endCol: number }): LineSegment[] {
+export function splitTextWithFormats(textSegment: { type: "text"; content: string; startCol: number; endCol: number }): LineSegment[] {
   const { content, startCol } = textSegment;
 
   interface FormatMatch {

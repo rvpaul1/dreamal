@@ -229,11 +229,11 @@ html, body, #root {
 }
 
 .md-underline {
-  text-decoration: underline;
+  text-decoration-line: underline;
 }
 
 .md-strikethrough {
-  text-decoration: line-through;
+  text-decoration-line: line-through;
 }
 
 .md-format-marker {
