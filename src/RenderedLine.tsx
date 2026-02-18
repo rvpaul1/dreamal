@@ -361,21 +361,51 @@ function InlineFormatRenderer({
 }) {
   const className = FORMAT_CLASS_MAP[format.format];
   const markerLen = format.markerLength;
+  const contentStart = startCol + markerLen;
+  const contentEnd = endCol - markerLen;
+
+  if (!isCursorLine) {
+    if (!selectionInfo) {
+      return <span className={className}>{format.content}</span>;
+    }
+
+    const { selStart, selEnd, showLineEndSelection } = selectionInfo;
+    const segSelStart = Math.max(selStart - contentStart, 0);
+    const segSelEnd = Math.min(selEnd - contentStart, format.content.length);
+    const hasSelectionInContent = segSelEnd > segSelStart && selStart < contentEnd && selEnd > contentStart;
+
+    if (!hasSelectionInContent) {
+      return <span className={className}>{format.content}</span>;
+    }
+
+    const beforeSel = format.content.slice(0, segSelStart);
+    const selected = format.content.slice(segSelStart, segSelEnd);
+    const afterSel = format.content.slice(segSelEnd);
+    const isLastPart = showLineEndSelection && segSelEnd === format.content.length;
+
+    return (
+      <span className={className}>
+        <span>{beforeSel}</span>
+        <span className="selection">
+          {selected}
+          {isLastPart && <span className="selection-line-end" />}
+        </span>
+        <span>{afterSel}</span>
+      </span>
+    );
+  }
 
   const openMarkerStart = startCol;
-  const openMarkerEnd = startCol + markerLen;
-  const contentStart = openMarkerEnd;
-  const contentEnd = endCol - markerLen;
+  const openMarkerEnd = contentStart;
   const closeMarkerStart = contentEnd;
   const closeMarkerEnd = endCol;
 
-  const openMarkerText = format.content.length > 0
+  const markerText = format.content.length > 0
     ? (format.format === "bold" ? "**" : format.format === "italic" ? "*" : format.format === "underline" ? "__" : "~~")
     : "";
-  const closeMarkerText = openMarkerText;
 
   const renderSpan = (text: string, spanStartCol: number, spanEndCol: number, applyFormat: boolean) => {
-    const cursorInSpan = isCursorLine && cursorCol >= spanStartCol && cursorCol <= spanEndCol;
+    const cursorInSpan = cursorCol >= spanStartCol && cursorCol <= spanEndCol;
     const relativeCursor = cursorCol - spanStartCol;
 
     if (!selectionInfo) {
@@ -437,9 +467,9 @@ function InlineFormatRenderer({
 
   return (
     <>
-      {renderSpan(openMarkerText, openMarkerStart, openMarkerEnd, false)}
+      {renderSpan(markerText, openMarkerStart, openMarkerEnd, false)}
       {renderSpan(format.content, contentStart, contentEnd, true)}
-      {renderSpan(closeMarkerText, closeMarkerStart, closeMarkerEnd, false)}
+      {renderSpan(markerText, closeMarkerStart, closeMarkerEnd, false)}
     </>
   );
 }
