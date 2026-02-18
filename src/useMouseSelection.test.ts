@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isWordChar, getWordBoundsAt } from "./useMouseSelection";
+import { isWordChar, getWordBoundsAt, displayColToRawCol } from "./useMouseSelection";
 
 describe("isWordChar", () => {
   it("returns true for lowercase letters", () => {
@@ -108,5 +108,90 @@ describe("getWordBoundsAt", () => {
   it("handles words with punctuation boundaries", () => {
     expect(getWordBoundsAt("hello.world", 0)).toEqual({ start: 0, end: 5 });
     expect(getWordBoundsAt("hello.world", 6)).toEqual({ start: 6, end: 11 });
+  });
+});
+
+describe("displayColToRawCol", () => {
+  describe("plain text (no formatting)", () => {
+    it("maps display positions to raw positions identity", () => {
+      expect(displayColToRawCol("hello", 0, false)).toBe(0);
+      expect(displayColToRawCol("hello", 3, false)).toBe(3);
+      expect(displayColToRawCol("hello", 5, false)).toBe(5);
+    });
+  });
+
+  describe("bold text on non-cursor line (markers hidden)", () => {
+    it("maps start of bold content to raw position after opening marker", () => {
+      expect(displayColToRawCol("**bold**", 0, false)).toBe(2);
+    });
+
+    it("maps middle of bold content correctly", () => {
+      expect(displayColToRawCol("**bold**", 2, false)).toBe(4);
+    });
+
+    it("maps end of bold content to raw position before closing marker", () => {
+      expect(displayColToRawCol("**bold**", 4, false)).toBe(6);
+    });
+  });
+
+  describe("bold text on cursor line (markers visible)", () => {
+    it("maps start of opening marker", () => {
+      expect(displayColToRawCol("**bold**", 0, true)).toBe(0);
+    });
+
+    it("maps inside opening marker", () => {
+      expect(displayColToRawCol("**bold**", 1, true)).toBe(1);
+    });
+
+    it("maps start of bold content (after opening marker)", () => {
+      expect(displayColToRawCol("**bold**", 2, true)).toBe(2);
+    });
+
+    it("maps middle of bold content", () => {
+      expect(displayColToRawCol("**bold**", 4, true)).toBe(4);
+    });
+
+    it("maps end of bold content (before closing marker)", () => {
+      expect(displayColToRawCol("**bold**", 6, true)).toBe(6);
+    });
+  });
+
+  describe("italic text on non-cursor line", () => {
+    it("maps start of italic content", () => {
+      expect(displayColToRawCol("*italic*", 0, false)).toBe(1);
+    });
+
+    it("maps middle of italic content", () => {
+      expect(displayColToRawCol("*italic*", 3, false)).toBe(4);
+    });
+  });
+
+  describe("mixed text with bold segment", () => {
+    it("maps plain text before bold correctly", () => {
+      expect(displayColToRawCol("hello **world**", 0, false)).toBe(0);
+      expect(displayColToRawCol("hello **world**", 4, false)).toBe(4);
+    });
+
+    it("maps inside bold segment on non-cursor line", () => {
+      expect(displayColToRawCol("hello **world**", 7, false)).toBe(9);
+      expect(displayColToRawCol("hello **world**", 9, false)).toBe(11);
+    });
+
+    it("maps inside bold segment on cursor line", () => {
+      expect(displayColToRawCol("hello **world**", 8, true)).toBe(8);
+      expect(displayColToRawCol("hello **world**", 11, true)).toBe(11);
+    });
+  });
+
+  describe("underline and strikethrough on non-cursor line", () => {
+    it("maps inside underline content", () => {
+      expect(displayColToRawCol("__text__", 0, false)).toBe(2);
+      expect(displayColToRawCol("__text__", 2, false)).toBe(4);
+    });
+
+    it("maps inside strikethrough content", () => {
+      expect(displayColToRawCol("~~text~~", 0, false)).toBe(2);
+      expect(displayColToRawCol("~~text~~", 2, false)).toBe(4);
+    });
   });
 });
