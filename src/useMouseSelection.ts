@@ -1,7 +1,7 @@
 import { useRef, useCallback } from "react";
 import type { CursorPosition } from "./useEditorState";
 import type { BulletInfo, HeadingInfo } from "./useMarkdown";
-import { parseLineSegments } from "./jsxBlocks";
+import { parseLineSegments, splitTextWithFormats } from "./jsxBlocks";
 
 export function isWordChar(char: string): boolean {
   return /[a-zA-Z0-9]/.test(char);
@@ -33,22 +33,59 @@ export function getWordBoundsAt(line: string, col: number): { start: number; end
   return { start, end };
 }
 
-function displayColToRawCol(lineText: string, displayCol: number): number {
+export function displayColToRawCol(lineText: string, displayCol: number, isCursorLine: boolean): number {
   const segments = parseLineSegments(lineText);
+  return displayColToRawColInSegments(segments, lineText.length, displayCol, isCursorLine);
+}
+
+function getSegmentDisplayLen(seg: ReturnType<typeof parseLineSegments>[number], isCursorLine: boolean): number {
+  if (seg.type === "link") return seg.link.text.length;
+  if (seg.type === "jsx") return 0;
+  if (seg.type === "format") {
+    const markerLen = seg.format.markerLength;
+    const contentStart = seg.startCol + markerLen;
+    const innerSegs = splitTextWithFormats({ type: "text", content: seg.format.content, startCol: contentStart, endCol: seg.endCol - markerLen });
+    const contentDisplayLen = innerSegs.reduce((sum, s) => sum + getSegmentDisplayLen(s, isCursorLine), 0);
+    return isCursorLine ? markerLen + contentDisplayLen + markerLen : contentDisplayLen;
+  }
+  return seg.content.length;
+}
+
+function displayColToRawColInSegments(
+  segments: ReturnType<typeof parseLineSegments>,
+  lineLen: number,
+  displayCol: number,
+  isCursorLine: boolean
+): number {
   let displayOffset = 0;
 
   for (const seg of segments) {
     if (seg.type === "link") {
       const linkDisplayLen = seg.link.text.length;
       if (displayCol <= displayOffset + linkDisplayLen) {
-        if (displayCol <= displayOffset) {
-          return seg.startCol;
-        }
+        if (displayCol <= displayOffset) return seg.startCol;
         return seg.endCol;
       }
       displayOffset += linkDisplayLen;
     } else if (seg.type === "jsx") {
       displayOffset += 0;
+    } else if (seg.type === "format") {
+      const markerLen = seg.format.markerLength;
+      const contentStart = seg.startCol + markerLen;
+      const innerSegs = splitTextWithFormats({ type: "text", content: seg.format.content, startCol: contentStart, endCol: seg.endCol - markerLen });
+      const contentDisplayLen = innerSegs.reduce((sum, s) => sum + getSegmentDisplayLen(s, isCursorLine), 0);
+      const totalDisplayLen = isCursorLine ? markerLen + contentDisplayLen + markerLen : contentDisplayLen;
+
+      if (displayCol <= displayOffset + totalDisplayLen) {
+        if (isCursorLine) {
+          const offsetInSeg = displayCol - displayOffset;
+          return seg.startCol + offsetInSeg;
+        } else {
+          const offsetInContent = displayCol - displayOffset;
+          return displayColToRawColInSegments(innerSegs, seg.endCol - markerLen, offsetInContent, isCursorLine);
+        }
+      }
+      displayOffset += totalDisplayLen;
     } else {
       const textLen = seg.content.length;
       if (displayCol <= displayOffset + textLen) {
@@ -59,7 +96,7 @@ function displayColToRawCol(lineText: string, displayCol: number): number {
     }
   }
 
-  return lineText.length;
+  return lineLen;
 }
 
 interface UseMouseSelectionOptions {
@@ -187,7 +224,7 @@ export function useMouseSelection({
         : hideBulletPrefix
           ? displayText.slice(prefixLen)
           : displayText;
-      const col = displayColToRawCol(rawDisplayText, displayCol);
+      const col = displayColToRawCol(rawDisplayText, displayCol, targetLine === currentCursorLine);
 
       return { line: targetLine, col: col + prefixLen };
     },
