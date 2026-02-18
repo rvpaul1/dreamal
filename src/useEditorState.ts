@@ -295,8 +295,8 @@ export function useEditorState() {
     }
   }, []);
 
-  const updateDocument = useCallback((doc: Document) => {
-    setDocument(doc);
+  const updateDocument = useCallback((docOrUpdater: Document | ((prev: Document) => Document)) => {
+    setDocument(docOrUpdater);
     clearHistory();
   }, [clearHistory]);
 
