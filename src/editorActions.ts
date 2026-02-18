@@ -890,6 +890,64 @@ export function parseMarkdownLinks(text: string): MarkdownLink[] {
   return links;
 }
 
+export function toggleInlineFormat(state: EditorState, marker: string): EditorState {
+  if (!hasSelection(state) || !state.selectionAnchor) {
+    const { line, col } = state.cursor;
+    const currentLine = state.lines[line];
+    const newLines = [...state.lines];
+    newLines[line] = currentLine.slice(0, col) + marker + marker + currentLine.slice(col);
+    return {
+      lines: newLines,
+      cursor: { line, col: col + marker.length },
+      selectionAnchor: null,
+    };
+  }
+
+  const { start, end } = getSelectionBounds(state.selectionAnchor, state.cursor);
+
+  if (start.line !== end.line) {
+    return state;
+  }
+
+  const line = start.line;
+  const currentLine = state.lines[line];
+  const selectedText = currentLine.slice(start.col, end.col);
+
+  const beforeSel = currentLine.slice(0, start.col);
+  const afterSel = currentLine.slice(end.col);
+
+  const alreadyWrapped =
+    beforeSel.endsWith(marker) && afterSel.startsWith(marker);
+
+  const cursorIsAtStart = posEqual(state.cursor, start);
+
+  const newLines = [...state.lines];
+  if (alreadyWrapped) {
+    newLines[line] =
+      beforeSel.slice(0, beforeSel.length - marker.length) +
+      selectedText +
+      afterSel.slice(marker.length);
+    const offset = marker.length;
+    const newStart = { line, col: start.col - offset };
+    const newEnd = { line, col: end.col - offset };
+    return {
+      lines: newLines,
+      cursor: cursorIsAtStart ? newStart : newEnd,
+      selectionAnchor: cursorIsAtStart ? newEnd : newStart,
+    };
+  }
+
+  newLines[line] = beforeSel + marker + selectedText + marker + afterSel;
+  const offset = marker.length;
+  const newStart = { line, col: start.col + offset };
+  const newEnd = { line, col: end.col + offset };
+  return {
+    lines: newLines,
+    cursor: cursorIsAtStart ? newStart : newEnd,
+    selectionAnchor: cursorIsAtStart ? newEnd : newStart,
+  };
+}
+
 export function swapHeadingSectionDown(
   state: EditorState,
   hiddenLines: Set<number>

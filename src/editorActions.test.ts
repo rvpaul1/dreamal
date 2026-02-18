@@ -36,6 +36,7 @@ import {
   swapHeadingSectionUp,
   swapHeadingSectionDown,
   parseMarkdownLinks,
+  toggleInlineFormat,
 } from "./editorActions";
 
 function state(
@@ -1437,6 +1438,108 @@ describe("Heading Functions", () => {
       const result = parseMarkdownLinks("prefix [link](url) suffix");
       expect(result[0].startCol).toBe(7);
       expect(result[0].endCol).toBe(18);
+    });
+  });
+
+  describe("toggleInlineFormat", () => {
+    describe("with no selection", () => {
+      it("inserts marker pair and places cursor between them (bold)", () => {
+        const s = state(["hello world"], cursor(0, 5));
+        const result = toggleInlineFormat(s, "**");
+        expect(result.lines).toEqual(["hello****world"]);
+        expect(result.cursor).toEqual(cursor(0, 7));
+        expect(result.selectionAnchor).toBeNull();
+      });
+
+      it("inserts marker pair at start of line", () => {
+        const s = state(["hello"], cursor(0, 0));
+        const result = toggleInlineFormat(s, "*");
+        expect(result.lines).toEqual(["**hello"]);
+        expect(result.cursor).toEqual(cursor(0, 1));
+      });
+
+      it("inserts marker pair at end of line", () => {
+        const s = state(["hello"], cursor(0, 5));
+        const result = toggleInlineFormat(s, "__");
+        expect(result.lines).toEqual(["hello____"]);
+        expect(result.cursor).toEqual(cursor(0, 7));
+      });
+    });
+
+    describe("wrapping selected text", () => {
+      it("wraps selection with bold markers", () => {
+        const s = state(["hello world"], cursor(0, 5), cursor(0, 0));
+        const result = toggleInlineFormat(s, "**");
+        expect(result.lines).toEqual(["**hello** world"]);
+        expect(result.selectionAnchor).toEqual(cursor(0, 2));
+        expect(result.cursor).toEqual(cursor(0, 7));
+      });
+
+      it("wraps selection with italic markers", () => {
+        const s = state(["hello world"], cursor(0, 11), cursor(0, 6));
+        const result = toggleInlineFormat(s, "*");
+        expect(result.lines).toEqual(["hello *world*"]);
+        expect(result.selectionAnchor).toEqual(cursor(0, 7));
+        expect(result.cursor).toEqual(cursor(0, 12));
+      });
+
+      it("wraps selection with underline markers", () => {
+        const s = state(["abc"], cursor(0, 3), cursor(0, 0));
+        const result = toggleInlineFormat(s, "__");
+        expect(result.lines).toEqual(["__abc__"]);
+      });
+
+      it("wraps selection with strikethrough markers", () => {
+        const s = state(["abc"], cursor(0, 3), cursor(0, 0));
+        const result = toggleInlineFormat(s, "~~");
+        expect(result.lines).toEqual(["~~abc~~"]);
+      });
+    });
+
+    describe("unwrapping already-formatted text", () => {
+      it("unwraps bold markers", () => {
+        const s = state(["**hello**"], cursor(0, 7), cursor(0, 2));
+        const result = toggleInlineFormat(s, "**");
+        expect(result.lines).toEqual(["hello"]);
+        expect(result.selectionAnchor).toEqual(cursor(0, 0));
+        expect(result.cursor).toEqual(cursor(0, 5));
+      });
+
+      it("unwraps italic markers", () => {
+        const s = state(["*hello*"], cursor(0, 6), cursor(0, 1));
+        const result = toggleInlineFormat(s, "*");
+        expect(result.lines).toEqual(["hello"]);
+        expect(result.selectionAnchor).toEqual(cursor(0, 0));
+        expect(result.cursor).toEqual(cursor(0, 5));
+      });
+
+      it("unwraps underline markers", () => {
+        const s = state(["__hello__"], cursor(0, 7), cursor(0, 2));
+        const result = toggleInlineFormat(s, "__");
+        expect(result.lines).toEqual(["hello"]);
+      });
+
+      it("unwraps strikethrough markers", () => {
+        const s = state(["~~hello~~"], cursor(0, 7), cursor(0, 2));
+        const result = toggleInlineFormat(s, "~~");
+        expect(result.lines).toEqual(["hello"]);
+      });
+
+      it("unwraps when markers are in middle of line", () => {
+        const s = state(["foo **bar** baz"], cursor(0, 9), cursor(0, 6));
+        const result = toggleInlineFormat(s, "**");
+        expect(result.lines).toEqual(["foo bar baz"]);
+        expect(result.selectionAnchor).toEqual(cursor(0, 4));
+        expect(result.cursor).toEqual(cursor(0, 7));
+      });
+    });
+
+    describe("multi-line selection", () => {
+      it("returns state unchanged for multi-line selection", () => {
+        const s = state(["hello", "world"], cursor(1, 3), cursor(0, 2));
+        const result = toggleInlineFormat(s, "**");
+        expect(result).toBe(s);
+      });
     });
   });
 });

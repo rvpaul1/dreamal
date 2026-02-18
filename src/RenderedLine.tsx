@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { getSelectionBounds, posBefore, type CursorPosition } from "./useEditorState";
 import { BrowserLink } from "./components/BrowserLink";
-import { parseLineSegments, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment } from "./jsxBlocks";
+import { parseLineSegments, splitTextWithFormats, type LineSegment, type InlineJSXBlock, type MarkdownLinkSegment, type InlineFormatSegment } from "./jsxBlocks";
 import { RenderComponent } from "./componentRegistry";
 import type { ParsedComponent } from "./jsxBlocks";
 import type { BulletInfo } from "./useMarkdown";
@@ -243,6 +243,20 @@ function SegmentRenderer({
     );
   }
 
+  if (segment.type === "format") {
+    return (
+      <InlineFormatRenderer
+        format={segment.format}
+        startCol={segment.startCol}
+        endCol={segment.endCol}
+        isCursorLine={isCursorLine}
+        cursorCol={cursorCol}
+        cursorVisible={cursorVisible}
+        selectionInfo={selectionInfo}
+      />
+    );
+  }
+
   return (
     <TextSegmentRenderer
       content={segment.content}
@@ -317,6 +331,142 @@ function TextSegmentRenderer({
       </span>
       {showCursorAtEnd && <Cursor visible={cursorVisible} />}
       <span>{afterSel}</span>
+    </>
+  );
+}
+
+const FORMAT_CLASS_MAP: Record<InlineFormatSegment["format"], string> = {
+  bold: "md-bold",
+  italic: "md-italic",
+  underline: "md-underline",
+  strikethrough: "md-strikethrough",
+};
+
+function InlineFormatRenderer({
+  format,
+  startCol,
+  endCol,
+  isCursorLine,
+  cursorCol,
+  cursorVisible,
+  selectionInfo,
+}: {
+  format: InlineFormatSegment;
+  startCol: number;
+  endCol: number;
+  isCursorLine: boolean;
+  cursorCol: number;
+  cursorVisible: boolean;
+  selectionInfo: SelectionInfo | null;
+}) {
+  const className = FORMAT_CLASS_MAP[format.format];
+  const markerLen = format.markerLength;
+  const contentStart = startCol + markerLen;
+  const contentEnd = endCol - markerLen;
+
+  const innerSegments = splitTextWithFormats({
+    type: "text",
+    content: format.content,
+    startCol: contentStart,
+    endCol: contentEnd,
+  });
+
+  const styledContent = (
+    <span className={className}>
+      {innerSegments.map((seg, idx) => {
+        if (seg.type === "format") {
+          return (
+            <InlineFormatRenderer
+              key={idx}
+              format={seg.format}
+              startCol={seg.startCol}
+              endCol={seg.endCol}
+              isCursorLine={isCursorLine}
+              cursorCol={cursorCol}
+              cursorVisible={cursorVisible}
+              selectionInfo={selectionInfo}
+            />
+          );
+        }
+        if (seg.type === "text") {
+          return (
+            <TextSegmentRenderer
+              key={idx}
+              content={seg.content}
+              startCol={seg.startCol}
+              endCol={seg.endCol}
+              isCursorLine={isCursorLine}
+              cursorCol={cursorCol}
+              cursorVisible={cursorVisible}
+              selectionInfo={selectionInfo}
+            />
+          );
+        }
+        return null;
+      })}
+    </span>
+  );
+
+  if (!isCursorLine) {
+    return styledContent;
+  }
+
+  const markerText = format.content.length > 0
+    ? (format.format === "bold" ? "**" : format.format === "italic" ? "*" : format.format === "underline" ? "__" : "~~")
+    : "";
+
+  const renderMarker = (text: string, markerStart: number, markerEnd: number) => {
+    const cursorInMarker = cursorCol >= markerStart && cursorCol <= markerEnd;
+    const relativeCursor = cursorCol - markerStart;
+
+    if (!selectionInfo) {
+      if (cursorInMarker) {
+        return (
+          <span className="md-format-marker">
+            <span>{text.slice(0, relativeCursor)}</span>
+            <Cursor visible={cursorVisible} />
+            <span>{text.slice(relativeCursor)}</span>
+          </span>
+        );
+      }
+      return <span className="md-format-marker">{text}</span>;
+    }
+
+    const { selStart, selEnd, cursorAtStart, cursorAtEnd, showLineEndSelection } = selectionInfo;
+    const segSelStart = Math.max(selStart - markerStart, 0);
+    const segSelEnd = Math.min(selEnd - markerStart, text.length);
+    const hasSelInMarker = segSelEnd > segSelStart && selStart < markerEnd && selEnd > markerStart;
+
+    if (!hasSelInMarker) {
+      return <span className="md-format-marker">{text}</span>;
+    }
+
+    const beforeSel = text.slice(0, segSelStart);
+    const selected = text.slice(segSelStart, segSelEnd);
+    const afterSel = text.slice(segSelEnd);
+    const showCursorAtStart = cursorAtStart && selStart >= markerStart && selStart <= markerEnd;
+    const showCursorAtEnd = cursorAtEnd && selEnd >= markerStart && selEnd <= markerEnd;
+    const isLastPart = showLineEndSelection && markerEnd === endCol && segSelEnd === text.length;
+
+    return (
+      <span className="md-format-marker">
+        <span>{beforeSel}</span>
+        {showCursorAtStart && <Cursor visible={cursorVisible} />}
+        <span className="selection">
+          {selected}
+          {isLastPart && <span className="selection-line-end" />}
+        </span>
+        {showCursorAtEnd && <Cursor visible={cursorVisible} />}
+        <span>{afterSel}</span>
+      </span>
+    );
+  };
+
+  return (
+    <>
+      {renderMarker(markerText, startCol, contentStart)}
+      {styledContent}
+      {renderMarker(markerText, contentEnd, endCol)}
     </>
   );
 }

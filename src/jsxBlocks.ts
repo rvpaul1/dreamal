@@ -334,10 +334,19 @@ export interface MarkdownLinkSegment {
   url: string;
 }
 
+export type InlineFormatType = "bold" | "italic" | "underline" | "strikethrough";
+
+export interface InlineFormatSegment {
+  content: string;
+  format: InlineFormatType;
+  markerLength: number;
+}
+
 export type LineSegment =
   | { type: "text"; content: string; startCol: number; endCol: number }
   | { type: "jsx"; block: InlineJSXBlock; startCol: number; endCol: number }
-  | { type: "link"; link: MarkdownLinkSegment; startCol: number; endCol: number };
+  | { type: "link"; link: MarkdownLinkSegment; startCol: number; endCol: number }
+  | { type: "format"; format: InlineFormatSegment; startCol: number; endCol: number };
 
 export interface InlineJSXBlock {
   raw: string;
@@ -396,6 +405,94 @@ function splitTextWithLinks(textSegment: { content: string; startCol: number; en
 
   if (results.length === 0) {
     results.push(textSegment as LineSegment);
+  }
+
+  return results;
+}
+
+const INLINE_FORMAT_PATTERNS: { pattern: RegExp; format: InlineFormatType; markerLength: number }[] = [
+  { pattern: /\*\*(.+?)\*\*/g, format: "bold", markerLength: 2 },
+  { pattern: /~~(.+?)~~/g, format: "strikethrough", markerLength: 2 },
+  { pattern: /__(.+?)__/g, format: "underline", markerLength: 2 },
+  { pattern: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, format: "italic", markerLength: 1 },
+];
+
+export function splitTextWithFormats(textSegment: { type: "text"; content: string; startCol: number; endCol: number }): LineSegment[] {
+  const { content, startCol } = textSegment;
+
+  interface FormatMatch {
+    index: number;
+    fullLength: number;
+    innerContent: string;
+    format: InlineFormatType;
+    markerLength: number;
+  }
+
+  const allMatches: FormatMatch[] = [];
+
+  for (const { pattern, format, markerLength } of INLINE_FORMAT_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      allMatches.push({
+        index: match.index,
+        fullLength: match[0].length,
+        innerContent: match[1],
+        format,
+        markerLength,
+      });
+    }
+  }
+
+  allMatches.sort((a, b) => a.index - b.index);
+
+  const nonOverlapping: FormatMatch[] = [];
+  let lastEnd = 0;
+  for (const m of allMatches) {
+    if (m.index >= lastEnd) {
+      nonOverlapping.push(m);
+      lastEnd = m.index + m.fullLength;
+    }
+  }
+
+  if (nonOverlapping.length === 0) {
+    return [textSegment];
+  }
+
+  const results: LineSegment[] = [];
+  let lastIndex = 0;
+
+  for (const m of nonOverlapping) {
+    if (m.index > lastIndex) {
+      results.push({
+        type: "text",
+        content: content.slice(lastIndex, m.index),
+        startCol: startCol + lastIndex,
+        endCol: startCol + m.index,
+      });
+    }
+
+    results.push({
+      type: "format",
+      format: {
+        content: m.innerContent,
+        format: m.format,
+        markerLength: m.markerLength,
+      },
+      startCol: startCol + m.index,
+      endCol: startCol + m.index + m.fullLength,
+    });
+
+    lastIndex = m.index + m.fullLength;
+  }
+
+  if (lastIndex < content.length) {
+    results.push({
+      type: "text",
+      content: content.slice(lastIndex),
+      startCol: startCol + lastIndex,
+      endCol: startCol + content.length,
+    });
   }
 
   return results;
@@ -460,10 +557,19 @@ export function parseLineSegments(lineText: string): LineSegment[] {
     });
   }
 
-  const segments: LineSegment[] = [];
+  const afterLinks: LineSegment[] = [];
   for (const seg of rawSegments) {
     if (seg.type === "text") {
-      segments.push(...splitTextWithLinks(seg));
+      afterLinks.push(...splitTextWithLinks(seg));
+    } else {
+      afterLinks.push(seg);
+    }
+  }
+
+  const segments: LineSegment[] = [];
+  for (const seg of afterLinks) {
+    if (seg.type === "text") {
+      segments.push(...splitTextWithFormats(seg as { type: "text"; content: string; startCol: number; endCol: number }));
     } else {
       segments.push(seg);
     }
