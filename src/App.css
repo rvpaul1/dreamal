@@ -220,6 +220,27 @@ html, body, #root {
   min-height: 27px;
 }
 
+.md-bold {
+  font-weight: bold;
+}
+
+.md-italic {
+  font-style: italic;
+}
+
+.md-underline {
+  text-decoration: underline;
+}
+
+.md-strikethrough {
+  text-decoration: line-through;
+}
+
+.md-format-marker {
+  color: #555;
+  font-size: 0.85em;
+}
+
 .md-link {
   color: #6a9fd8;
   text-decoration: underline;

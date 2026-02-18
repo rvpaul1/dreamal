@@ -33,6 +33,7 @@ import {
   indentBullet,
   outdentBullet,
   isBulletLine,
+  toggleInlineFormat,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
@@ -197,11 +198,29 @@ export function useEditorState() {
           return;
         }
 
+        if (e.shiftKey && e.key === "x") {
+          e.preventDefault();
+          updateEditorWithHistory((s) => toggleInlineFormat(s, "~~"));
+          return;
+        }
+
         const isShift = e.shiftKey;
         switch (e.key) {
           case "a":
             e.preventDefault();
             updateEditorNoHistory(selectAll);
+            return;
+          case "b":
+            e.preventDefault();
+            updateEditorWithHistory((s) => toggleInlineFormat(s, "**"));
+            return;
+          case "i":
+            e.preventDefault();
+            updateEditorWithHistory((s) => toggleInlineFormat(s, "*"));
+            return;
+          case "u":
+            e.preventDefault();
+            updateEditorWithHistory((s) => toggleInlineFormat(s, "__"));
             return;
           case "ArrowLeft":
             e.preventDefault();
