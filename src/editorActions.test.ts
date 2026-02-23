@@ -37,6 +37,9 @@ import {
   swapHeadingSectionDown,
   parseMarkdownLinks,
   toggleInlineFormat,
+  isUrlOrDomain,
+  tryFormatUrlBeforeSpace,
+  tryFormatUrlBeforeNewline,
 } from "./editorActions";
 
 function state(
@@ -1540,6 +1543,199 @@ describe("Heading Functions", () => {
         const result = toggleInlineFormat(s, "**");
         expect(result).toBe(s);
       });
+    });
+  });
+});
+
+describe("URL detection and formatting", () => {
+  describe("isUrlOrDomain", () => {
+    it("returns true for https URLs", () => {
+      expect(isUrlOrDomain("https://example.com")).toBe(true);
+    });
+
+    it("returns true for http URLs", () => {
+      expect(isUrlOrDomain("http://example.com")).toBe(true);
+    });
+
+    it("returns true for ftp URLs", () => {
+      expect(isUrlOrDomain("ftp://files.example.com")).toBe(true);
+    });
+
+    it("returns true for URLs with paths", () => {
+      expect(isUrlOrDomain("https://example.com/path/to/page")).toBe(true);
+    });
+
+    it("returns true for URLs with query strings", () => {
+      expect(isUrlOrDomain("https://example.com?q=hello")).toBe(true);
+    });
+
+    it("returns true for URLs with anchors", () => {
+      expect(isUrlOrDomain("https://example.com#section")).toBe(true);
+    });
+
+    it("returns true for subdomains", () => {
+      expect(isUrlOrDomain("https://sub.example.com")).toBe(true);
+      expect(isUrlOrDomain("https://api.sub.example.com/v1")).toBe(true);
+    });
+
+    it("returns true for www. domains", () => {
+      expect(isUrlOrDomain("www.example.com")).toBe(true);
+      expect(isUrlOrDomain("www.example.com/path")).toBe(true);
+    });
+
+    it("returns true for common TLDs", () => {
+      expect(isUrlOrDomain("example.com")).toBe(true);
+      expect(isUrlOrDomain("example.org")).toBe(true);
+      expect(isUrlOrDomain("example.net")).toBe(true);
+      expect(isUrlOrDomain("example.io")).toBe(true);
+      expect(isUrlOrDomain("example.dev")).toBe(true);
+      expect(isUrlOrDomain("example.app")).toBe(true);
+      expect(isUrlOrDomain("example.ai")).toBe(true);
+    });
+
+    it("returns true for domain with path and known TLD", () => {
+      expect(isUrlOrDomain("example.com/some/path")).toBe(true);
+    });
+
+    it("returns false for common file extensions", () => {
+      expect(isUrlOrDomain("file.txt")).toBe(false);
+      expect(isUrlOrDomain("image.png")).toBe(false);
+      expect(isUrlOrDomain("config.json")).toBe(false);
+      expect(isUrlOrDomain("script.js")).toBe(false);
+    });
+
+    it("returns false for single word without dot", () => {
+      expect(isUrlOrDomain("hello")).toBe(false);
+    });
+
+    it("returns false for two words with unknown TLD", () => {
+      expect(isUrlOrDomain("hello.world")).toBe(false);
+    });
+
+    it("returns false for text shorter than 4 chars", () => {
+      expect(isUrlOrDomain("ab")).toBe(false);
+      expect(isUrlOrDomain("")).toBe(false);
+    });
+
+    it("returns false for partial protocol URL (no domain)", () => {
+      expect(isUrlOrDomain("https://exam")).toBe(false);
+    });
+  });
+
+  describe("tryFormatUrlBeforeSpace", () => {
+    it("returns null when char before cursor is not a space", () => {
+      const s = state(["https://example.com"], cursor(0, 19));
+      expect(tryFormatUrlBeforeSpace(s)).toBeNull();
+    });
+
+    it("returns null when no URL before space", () => {
+      const s = state(["hello "], cursor(0, 6));
+      expect(tryFormatUrlBeforeSpace(s)).toBeNull();
+    });
+
+    it("returns null at col 0", () => {
+      const s = state([" "], cursor(0, 0));
+      expect(tryFormatUrlBeforeSpace(s)).toBeNull();
+    });
+
+    it("formats a plain https URL", () => {
+      const s = state(["https://example.com "], cursor(0, 20));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[https://example.com](https://example.com) ");
+      expect(result!.cursor).toEqual(cursor(0, 43));
+    });
+
+    it("formats a domain with known TLD", () => {
+      const s = state(["example.com "], cursor(0, 12));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[example.com](example.com) ");
+    });
+
+    it("formats URL with text before it", () => {
+      const s = state(["Visit https://example.com "], cursor(0, 26));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("Visit [https://example.com](https://example.com) ");
+    });
+
+    it("formats URL with text after the space", () => {
+      const s = state(["https://example.com foo"], cursor(0, 20));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[https://example.com](https://example.com) foo");
+      expect(result!.cursor).toEqual(cursor(0, 43));
+    });
+
+    it("strips trailing punctuation before formatting", () => {
+      const s = state(["example.com, "], cursor(0, 13));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[example.com](example.com), ");
+    });
+
+    it("returns null when URL is immediately after opening paren", () => {
+      const s = state(["(https://example.com "], cursor(0, 21));
+      expect(tryFormatUrlBeforeSpace(s)).toBeNull();
+    });
+
+    it("does not format when word is not a URL", () => {
+      const s = state(["hello.txt "], cursor(0, 10));
+      expect(tryFormatUrlBeforeSpace(s)).toBeNull();
+    });
+
+    it("formats www. domain", () => {
+      const s = state(["www.example.com "], cursor(0, 16));
+      const result = tryFormatUrlBeforeSpace(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[www.example.com](www.example.com) ");
+    });
+  });
+
+  describe("tryFormatUrlBeforeNewline", () => {
+    it("returns null when cursor is on first line", () => {
+      const s = state(["", ""], cursor(0, 0));
+      expect(tryFormatUrlBeforeNewline(s)).toBeNull();
+    });
+
+    it("returns null when previous line doesn't end with URL", () => {
+      const s = state(["hello world", ""], cursor(1, 0));
+      expect(tryFormatUrlBeforeNewline(s)).toBeNull();
+    });
+
+    it("formats URL at end of previous line", () => {
+      const s = state(["Visit https://example.com", ""], cursor(1, 0));
+      const result = tryFormatUrlBeforeNewline(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("Visit [https://example.com](https://example.com)");
+      expect(result!.cursor).toEqual(cursor(1, 0));
+    });
+
+    it("formats domain at end of previous line", () => {
+      const s = state(["example.com", ""], cursor(1, 0));
+      const result = tryFormatUrlBeforeNewline(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("[example.com](example.com)");
+    });
+
+    it("preserves trailing punctuation", () => {
+      const s = state(["Check example.com.", ""], cursor(1, 0));
+      const result = tryFormatUrlBeforeNewline(s);
+      expect(result).not.toBeNull();
+      expect(result!.lines[0]).toBe("Check [example.com](example.com).");
+    });
+
+    it("returns null when URL immediately follows opening paren", () => {
+      const s = state(["(https://example.com", ""], cursor(1, 0));
+      expect(tryFormatUrlBeforeNewline(s)).toBeNull();
+    });
+
+    it("cursor stays on the new line", () => {
+      const s = state(["https://example.com", "content"], cursor(1, 7));
+      const result = tryFormatUrlBeforeNewline(s);
+      expect(result).not.toBeNull();
+      expect(result!.cursor).toEqual(cursor(1, 7));
     });
   });
 });

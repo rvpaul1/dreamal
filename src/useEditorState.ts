@@ -34,6 +34,8 @@ import {
   outdentBullet,
   isBulletLine,
   toggleInlineFormat,
+  tryFormatUrlBeforeSpace,
+  tryFormatUrlBeforeNewline,
 } from "./editorActions";
 import { type Document, createDocument } from "./documentModel";
 import { type Macro } from "./macros";
@@ -148,6 +150,25 @@ export function useEditorState() {
       }));
     },
     []
+  );
+
+  const updateEditorWithUrlCheck = useCallback(
+    (
+      firstUpdate: (state: EditorState) => EditorState,
+      urlCheck: (state: EditorState) => EditorState | null
+    ) => {
+      setDocument((doc) => {
+        pushState(doc.editor);
+        const intermediate = firstUpdate(doc.editor);
+        const withUrl = urlCheck(intermediate);
+        if (withUrl) {
+          pushState(intermediate);
+          return { ...doc, editor: withUrl };
+        }
+        return { ...doc, editor: intermediate };
+      });
+    },
+    [pushState]
   );
 
   const handleUndo = useCallback(() => {
@@ -291,9 +312,16 @@ export function useEditorState() {
             });
           }
           break;
+        case " ":
+          e.preventDefault();
+          updateEditorWithUrlCheck(
+            (s) => insertCharacterWithBulletCheck(s, " "),
+            tryFormatUrlBeforeSpace
+          );
+          break;
         case "Enter":
           e.preventDefault();
-          updateEditorWithHistory(insertNewlineWithBullet);
+          updateEditorWithUrlCheck(insertNewlineWithBullet, tryFormatUrlBeforeNewline);
           break;
         case "Shift":
           break;
@@ -305,7 +333,7 @@ export function useEditorState() {
           break;
       }
     },
-    [updateEditorWithHistory, updateEditorNoHistory, handleUndo, handleRedo]
+    [updateEditorWithHistory, updateEditorNoHistory, updateEditorWithUrlCheck, handleUndo, handleRedo]
   );
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent) => {

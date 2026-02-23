@@ -948,6 +948,78 @@ export function toggleInlineFormat(state: EditorState, marker: string): EditorSt
   };
 }
 
+const URL_WITH_PROTOCOL_REGEX = /^(?:https?|ftp):\/\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[/?#][^\s]*)?$/i;
+const URL_WITH_WWW_REGEX = /^www\.(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?:[/?#][^\s]*)?$/i;
+const DOMAIN_WITH_KNOWN_TLD_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+(?:com|org|net|io|dev|app|ai|co|uk|edu|gov|me|us|info|biz|tv|xyz|tech|online|site|store|blog|news|cloud|digital|studio)(?:[/?#][^\s]*)?$/i;
+
+function stripTrailingPunctuation(text: string): string {
+  return text.replace(/[.,;:!?)\]}>'"]+$/, "");
+}
+
+export function isUrlOrDomain(text: string): boolean {
+  if (!text || text.length < 4) return false;
+  return (
+    URL_WITH_PROTOCOL_REGEX.test(text) ||
+    URL_WITH_WWW_REGEX.test(text) ||
+    DOMAIN_WITH_KNOWN_TLD_REGEX.test(text)
+  );
+}
+
+export function tryFormatUrlBeforeSpace(state: EditorState): EditorState | null {
+  const { line, col } = state.cursor;
+  const currentLine = state.lines[line];
+
+  if (col === 0 || currentLine[col - 1] !== " ") return null;
+
+  const textBeforeSpace = currentLine.slice(0, col - 1);
+  const lastBreakMatch = textBeforeSpace.match(/[\s](?=[^\s]*$)/);
+  const wordStart = lastBreakMatch ? lastBreakMatch.index! + 1 : 0;
+  const rawWord = textBeforeSpace.slice(wordStart);
+  const word = stripTrailingPunctuation(rawWord);
+
+  if (!word || !isUrlOrDomain(word)) return null;
+  if (wordStart > 0 && currentLine[wordStart - 1] === "(") return null;
+
+  const markdownLink = `[${word}](${word})`;
+  const before = currentLine.slice(0, wordStart);
+  const trailingPunct = rawWord.slice(word.length);
+  const after = trailingPunct + currentLine.slice(col - 1);
+  const newLines = [...state.lines];
+  newLines[line] = before + markdownLink + after;
+
+  return {
+    ...state,
+    lines: newLines,
+    cursor: { line, col: before.length + markdownLink.length + trailingPunct.length + 1 },
+  };
+}
+
+export function tryFormatUrlBeforeNewline(state: EditorState): EditorState | null {
+  const { line } = state.cursor;
+  if (line === 0) return null;
+
+  const prevLine = state.lines[line - 1];
+  const match = prevLine.match(/(\S+)$/);
+  if (!match) return null;
+
+  const rawWord = match[1];
+  const wordStart = match.index!;
+  const word = stripTrailingPunctuation(rawWord);
+
+  if (!word || !isUrlOrDomain(word)) return null;
+  if (wordStart > 0 && prevLine[wordStart - 1] === "(") return null;
+
+  const markdownLink = `[${word}](${word})`;
+  const trailingPunct = rawWord.slice(word.length);
+  const newLines = [...state.lines];
+  newLines[line - 1] = prevLine.slice(0, wordStart) + markdownLink + trailingPunct;
+
+  return {
+    ...state,
+    lines: newLines,
+  };
+}
+
 export function swapHeadingSectionDown(
   state: EditorState,
   hiddenLines: Set<number>
