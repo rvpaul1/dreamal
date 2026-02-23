@@ -276,6 +276,14 @@ html, body, #root {
   padding: 4px 8px;
 }
 
+.scrollable-section-end {
+  height: 2px;
+  margin-left: 30px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.12), transparent);
+  border-radius: 0 0 2px 2px;
+  margin-bottom: 4px;
+}
+
 .scrollable-heading {
   position: relative;
 }

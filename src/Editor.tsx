@@ -174,12 +174,8 @@ function Editor() {
     for (const [headingLine, scrollLines] of scrollableHeadings) {
       const range = getHeadingSectionRange(lines, headingLine);
       if (range.end > headingLine) {
-        let contentEnd = range.end;
-        while (contentEnd > headingLine && lines[contentEnd].trim() === "") {
-          contentEnd--;
-        }
-        sections.set(headingLine, { endLine: contentEnd, scrollLines });
-        for (let i = headingLine + 1; i <= contentEnd; i++) {
+        sections.set(headingLine, { endLine: range.end, scrollLines });
+        for (let i = headingLine + 1; i <= range.end; i++) {
           sectionLines.add(i);
         }
       }
@@ -215,6 +211,7 @@ function Editor() {
               return renderLine(contentText, contentLineIndex);
             })}
           </div>
+          <div className="scrollable-section-end" />
         </div>
       );
     }
