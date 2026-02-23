@@ -4,12 +4,14 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 interface ClaudeDelegateModalProps {
   instructions: string;
+  entryId: string;
   onConfirm: (sessionId: string) => void;
   onCancel: () => void;
 }
 
 export function ClaudeDelegateModal({
   instructions,
+  entryId,
   onConfirm,
   onCancel,
 }: ClaudeDelegateModalProps) {
@@ -25,14 +27,21 @@ export function ClaudeDelegateModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<string | null>("get_setting", { key: "defaultGitDirectory" }).then(
-      (value) => {
-        if (value && !gitDirectory) {
-          setGitDirectory(value);
-        }
+    const entryKey = `gitDirectory_${entryId}`;
+    invoke<string | null>("get_setting", { key: entryKey }).then((entryValue) => {
+      if (entryValue) {
+        setGitDirectory(entryValue);
+      } else {
+        invoke<string | null>("get_setting", { key: "defaultGitDirectory" }).then(
+          (value) => {
+            if (value) {
+              setGitDirectory(value);
+            }
+          }
+        );
       }
-    );
-  }, []);
+    });
+  }, [entryId]);
 
   const handleSelectGitDirectory = async () => {
     try {
@@ -96,6 +105,10 @@ export function ClaudeDelegateModal({
       });
       await invoke("set_setting", {
         key: "defaultGitDirectory",
+        value: gitDirectory,
+      });
+      await invoke("set_setting", {
+        key: `gitDirectory_${entryId}`,
         value: gitDirectory,
       });
       onConfirm(sessionId);

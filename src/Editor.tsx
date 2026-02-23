@@ -314,6 +314,7 @@ function Editor() {
       {claudeModal && (
         <ClaudeDelegateModal
           instructions={claudeModal.instructions}
+          entryId={document.metadata.id}
           onConfirm={handleClaudeConfirm}
           onCancel={handleClaudeCancel}
         />
