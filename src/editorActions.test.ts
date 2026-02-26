@@ -1447,7 +1447,7 @@ describe("Heading Functions", () => {
   describe("toggleInlineFormat", () => {
     describe("with no selection", () => {
       it("inserts marker pair and places cursor between them (bold)", () => {
-        const s = state(["hello world"], cursor(0, 5));
+        const s = state(["helloworld"], cursor(0, 5));
         const result = toggleInlineFormat(s, "**");
         expect(result.lines).toEqual(["hello****world"]);
         expect(result.cursor).toEqual(cursor(0, 7));
