@@ -111,6 +111,24 @@ describe("useUndoRedo", () => {
     expect(result.current.undo(state1)).toBeNull();
   });
 
+  it("url formatting scenario: first undo preserves space, second removes it", () => {
+    const { result } = renderHook(() => useUndoRedo());
+    const preSpace = makeState("google.com", 10);
+    const intermediate = makeState("google.com ", 11);
+    const formatted = makeState("[google.com](google.com) ", 25);
+
+    act(() => {
+      result.current.pushState(preSpace);
+      result.current.pushState(intermediate);
+    });
+
+    const firstUndo = result.current.undo(formatted);
+    expect(firstUndo!.lines[0]).toBe("google.com ");
+
+    const secondUndo = result.current.undo(firstUndo!);
+    expect(secondUndo!.lines[0]).toBe("google.com");
+  });
+
   it("supports undo-redo-undo cycle", () => {
     const { result } = renderHook(() => useUndoRedo());
     const state1 = makeState("a");

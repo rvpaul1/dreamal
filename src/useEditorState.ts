@@ -52,6 +52,8 @@ export function useEditorState() {
   const [isOptionHeld, setIsOptionHeld] = useState(false);
   const [hiddenLines, setHiddenLines] = useState<Set<number>>(new Set());
   const { pushState, undo, redo, clear: clearHistory } = useUndoRedo();
+  const documentRef = useRef(document);
+  documentRef.current = document;
   const collapsedHeadings = useMemo(() => {
     const collapsed = new Set<number>();
     for (let i = 0; i < document.editor.lines.length; i++) {
@@ -157,34 +159,30 @@ export function useEditorState() {
       firstUpdate: (state: EditorState) => EditorState,
       urlCheck: (state: EditorState) => EditorState | null
     ) => {
-      setDocument((doc) => {
-        pushState(doc.editor);
-        const intermediate = firstUpdate(doc.editor);
-        const withUrl = urlCheck(intermediate);
-        if (withUrl) {
-          pushState(intermediate);
-          return { ...doc, editor: withUrl };
-        }
-        return { ...doc, editor: intermediate };
-      });
+      const preState = documentRef.current.editor;
+      pushState(preState);
+      const intermediate = firstUpdate(preState);
+      const withUrl = urlCheck(intermediate);
+      if (withUrl) {
+        pushState(intermediate);
+        setDocument((doc) => ({ ...doc, editor: withUrl }));
+      } else {
+        setDocument((doc) => ({ ...doc, editor: intermediate }));
+      }
     },
     [pushState]
   );
 
   const handleUndo = useCallback(() => {
-    setDocument((doc) => {
-      const previous = undo(doc.editor);
-      if (!previous) return doc;
-      return { ...doc, editor: previous };
-    });
+    const previous = undo(documentRef.current.editor);
+    if (!previous) return;
+    setDocument((doc) => ({ ...doc, editor: previous }));
   }, [undo]);
 
   const handleRedo = useCallback(() => {
-    setDocument((doc) => {
-      const next = redo(doc.editor);
-      if (!next) return doc;
-      return { ...doc, editor: next };
-    });
+    const next = redo(documentRef.current.editor);
+    if (!next) return;
+    setDocument((doc) => ({ ...doc, editor: next }));
   }, [redo]);
 
   const handleKeyDown = useCallback(
