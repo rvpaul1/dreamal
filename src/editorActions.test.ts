@@ -268,6 +268,127 @@ describe("Cursor Movement", () => {
     });
   });
 
+  describe("moveCursorUp with lineWidth (wrapped lines)", () => {
+    const lines = ["hello world test", "foo bar", "xyz"];
+    // lineWidth=5: line0 has 4 visual rows [0-4],[5-9],[10-14],[15-16]
+    //              line1 has 2 visual rows [0-4],[5-6]
+    //              line2 has 1 visual row  [0-2]
+
+    it("moves to previous visual row within the same line (middle of line)", () => {
+      const result = moveCursorUp(state(lines, cursor(0, 7)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 2));
+    });
+
+    it("moves to last visual row of previous line when on first visual row", () => {
+      const result = moveCursorUp(state(lines, cursor(1, 0)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 15));
+    });
+
+    it("moves from end of a wrapped line to same visual col in previous visual row", () => {
+      const result = moveCursorUp(state(lines, cursor(0, 16)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 11));
+    });
+
+    it("preserves visual column when crossing to previous logical line", () => {
+      const result = moveCursorUp(state(lines, cursor(1, 6)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 1));
+    });
+
+    it("crosses from first visual row of line1 to last visual row of line0", () => {
+      const result = moveCursorUp(state(lines, cursor(1, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 16));
+    });
+
+    it("goes to document start when pressing up on first line, first visual row", () => {
+      const result = moveCursorUp(state(lines, cursor(0, 0)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("moves to beginning when pressing up from middle of first logical line", () => {
+      const result = moveCursorUp(state(lines, cursor(0, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("handles empty lines correctly", () => {
+      const result = moveCursorUp(state(["hello", "", "world"], cursor(2, 0)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 0));
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorUp(state(lines, cursor(0, 7)), true, 5);
+      expect(result.cursor).toEqual(cursor(0, 2));
+      expect(result.selectionAnchor).toEqual(cursor(0, 7));
+    });
+
+    it("handles line with length exactly equal to lineWidth", () => {
+      const result = moveCursorUp(state(["abcde", "xyz"], cursor(1, 2)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 2));
+    });
+
+    it("handles cursor at end of line with length equal to lineWidth", () => {
+      const result = moveCursorUp(state(["hello", "abcde"], cursor(1, 5)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+  });
+
+  describe("moveCursorDown with lineWidth (wrapped lines)", () => {
+    const lines = ["hello world test", "foo bar", "xyz"];
+    // lineWidth=5: line0 has 4 visual rows [0-4],[5-9],[10-14],[15-16]
+    //              line1 has 2 visual rows [0-4],[5-6]
+    //              line2 has 1 visual row  [0-2]
+
+    it("moves to next visual row within the same line (beginning of line)", () => {
+      const result = moveCursorDown(state(lines, cursor(0, 0)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("moves to next visual row preserving visual column (middle of line)", () => {
+      const result = moveCursorDown(state(lines, cursor(0, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(0, 8));
+    });
+
+    it("moves from last visual row to first visual row of next line", () => {
+      const result = moveCursorDown(state(lines, cursor(0, 16)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 1));
+    });
+
+    it("moves from end of last visual row to next logical line at same visual col", () => {
+      const result = moveCursorDown(state(lines, cursor(1, 7)), false, 5);
+      expect(result.cursor).toEqual(cursor(2, 2));
+    });
+
+    it("clamps visual column when next line is shorter", () => {
+      const result = moveCursorDown(state(lines, cursor(1, 5)), false, 5);
+      expect(result.cursor).toEqual(cursor(2, 0));
+    });
+
+    it("stays at end of document on last line, last visual row", () => {
+      const result = moveCursorDown(state(lines, cursor(2, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(2, 3));
+    });
+
+    it("handles empty lines correctly", () => {
+      const result = moveCursorDown(state(["hello", "", "world"], cursor(0, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 0));
+    });
+
+    it("extends selection with shift held", () => {
+      const result = moveCursorDown(state(lines, cursor(0, 3)), true, 5);
+      expect(result.cursor).toEqual(cursor(0, 8));
+      expect(result.selectionAnchor).toEqual(cursor(0, 3));
+    });
+
+    it("handles line with length exactly equal to lineWidth", () => {
+      const result = moveCursorDown(state(["abcde", "xyz"], cursor(0, 3)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+
+    it("handles cursor at end of line with length equal to lineWidth", () => {
+      const result = moveCursorDown(state(["abcde", "xyz"], cursor(0, 5)), false, 5);
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+  });
+
   describe("moveCursorToLineStart", () => {
     it("moves cursor to beginning of line", () => {
       const result = moveCursorToLineStart(state(["hello"], cursor(0, 3)), false);

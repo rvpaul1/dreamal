@@ -186,7 +186,7 @@ export function useEditorState() {
   }, [redo]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, currentHiddenLines: Set<number>) => {
+    (e: React.KeyboardEvent, currentHiddenLines: Set<number>, lineWidth?: number) => {
       if (e.key === "Alt") {
         setIsOptionHeld(true);
       }
@@ -278,11 +278,11 @@ export function useEditorState() {
           break;
         case "ArrowUp":
           e.preventDefault();
-          updateEditorNoHistory((s) => moveCursorUp(s, isShift));
+          updateEditorNoHistory((s) => moveCursorUp(s, isShift, lineWidth));
           break;
         case "ArrowDown":
           e.preventDefault();
-          updateEditorNoHistory((s) => moveCursorDown(s, isShift));
+          updateEditorNoHistory((s) => moveCursorDown(s, isShift, lineWidth));
           break;
         case "Backspace":
           e.preventDefault();

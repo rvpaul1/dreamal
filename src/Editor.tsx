@@ -20,6 +20,7 @@ import { getHeadingSectionRange } from "./editorActions";
 function Editor() {
   const editorRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const lineWidthRef = useRef<number | undefined>(undefined);
 
   const {
     document,
@@ -146,6 +147,7 @@ function Editor() {
     hiddenLines,
     selectedBlockRange,
     handleEditorKeyDown,
+    lineWidthRef,
     handlePaste,
     handleCopy,
     handleBlockDelete,
@@ -166,6 +168,31 @@ function Editor() {
 
   useEffect(() => {
     editorRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const updateLineWidth = () => {
+      const lineEl = lineRefs.current.values().next().value as HTMLDivElement | undefined;
+      const lineTextEl = lineEl?.querySelector(".line-text") as HTMLElement | null;
+      if (!lineTextEl || !editorRef.current) return;
+
+      const contentWidth = lineTextEl.clientWidth;
+      if (contentWidth <= 0) return;
+
+      const style = window.getComputedStyle(editorRef.current);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.font = `${style.fontSize} ${style.fontFamily}`;
+      const sample = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const avgCharWidth = ctx.measureText(sample).width / sample.length;
+      lineWidthRef.current = Math.max(1, Math.floor(contentWidth / avgCharWidth));
+    };
+
+    updateLineWidth();
+    const observer = new ResizeObserver(updateLineWidth);
+    if (editorRef.current) observer.observe(editorRef.current);
+    return () => observer.disconnect();
   }, []);
 
   const { scrollableSections, scrollableSectionLines } = useMemo(() => {
