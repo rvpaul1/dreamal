@@ -132,15 +132,33 @@ export function moveCursorRight(state: EditorState, isShift: boolean): EditorSta
   };
 }
 
-export function moveCursorUp(state: EditorState, isShift: boolean): EditorState {
+export function moveCursorUp(state: EditorState, isShift: boolean, lineWidth?: number): EditorState {
   const { line, col } = state.cursor;
   let newPos: CursorPosition;
 
-  if (line > 0) {
-    const newCol = Math.min(col, state.lines[line - 1].length);
-    newPos = { line: line - 1, col: newCol };
+  if (lineWidth !== undefined && lineWidth > 0) {
+    const currentLine = state.lines[line];
+    const totalVisualRows = currentLine.length === 0 ? 1 : Math.ceil(currentLine.length / lineWidth);
+    const currentVisualRow = Math.min(Math.floor(col / lineWidth), totalVisualRows - 1);
+    const currentVisualCol = col - currentVisualRow * lineWidth;
+
+    if (currentVisualRow > 0) {
+      newPos = { line, col: (currentVisualRow - 1) * lineWidth + currentVisualCol };
+    } else if (line > 0) {
+      const prevLine = state.lines[line - 1];
+      const prevTotalVisualRows = prevLine.length === 0 ? 1 : Math.ceil(prevLine.length / lineWidth);
+      const lastVisualRowStart = (prevTotalVisualRows - 1) * lineWidth;
+      newPos = { line: line - 1, col: Math.min(lastVisualRowStart + currentVisualCol, prevLine.length) };
+    } else {
+      newPos = { line: 0, col: 0 };
+    }
   } else {
-    newPos = { line: 0, col: 0 };
+    if (line > 0) {
+      const newCol = Math.min(col, state.lines[line - 1].length);
+      newPos = { line: line - 1, col: newCol };
+    } else {
+      newPos = { line: 0, col: 0 };
+    }
   }
 
   if (isShift) {
@@ -158,16 +176,32 @@ export function moveCursorUp(state: EditorState, isShift: boolean): EditorState 
   };
 }
 
-export function moveCursorDown(state: EditorState, isShift: boolean): EditorState {
+export function moveCursorDown(state: EditorState, isShift: boolean, lineWidth?: number): EditorState {
   const { line, col } = state.cursor;
   const currentLine = state.lines[line];
   let newPos: CursorPosition;
 
-  if (line < state.lines.length - 1) {
-    const newCol = Math.min(col, state.lines[line + 1].length);
-    newPos = { line: line + 1, col: newCol };
+  if (lineWidth !== undefined && lineWidth > 0) {
+    const totalVisualRows = currentLine.length === 0 ? 1 : Math.ceil(currentLine.length / lineWidth);
+    const currentVisualRow = Math.min(Math.floor(col / lineWidth), totalVisualRows - 1);
+    const currentVisualCol = col - currentVisualRow * lineWidth;
+
+    if (currentVisualRow < totalVisualRows - 1) {
+      const nextRowStart = (currentVisualRow + 1) * lineWidth;
+      newPos = { line, col: Math.min(nextRowStart + currentVisualCol, currentLine.length) };
+    } else if (line < state.lines.length - 1) {
+      const nextLine = state.lines[line + 1];
+      newPos = { line: line + 1, col: Math.min(currentVisualCol, nextLine.length) };
+    } else {
+      newPos = { line, col: currentLine.length };
+    }
   } else {
-    newPos = { line, col: currentLine.length };
+    if (line < state.lines.length - 1) {
+      const newCol = Math.min(col, state.lines[line + 1].length);
+      newPos = { line: line + 1, col: newCol };
+    } else {
+      newPos = { line, col: currentLine.length };
+    }
   }
 
   if (isShift) {

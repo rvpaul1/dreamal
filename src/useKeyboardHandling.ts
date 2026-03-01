@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import type { RefObject } from "react";
 import { createDocument } from "./documentModel";
 import { createInitialState } from "./editorActions";
 import type { CursorPosition, Document } from "./useEditorState";
@@ -9,7 +10,8 @@ interface UseKeyboardHandlingProps {
   hasSelection: boolean;
   hiddenLines: Set<number>;
   selectedBlockRange: SelectedBlockRange | null;
-  handleEditorKeyDown: (e: React.KeyboardEvent, hiddenLines: Set<number>) => void;
+  handleEditorKeyDown: (e: React.KeyboardEvent, hiddenLines: Set<number>, lineWidth?: number) => void;
+  lineWidthRef?: RefObject<number | undefined>;
   handlePaste: (text: string) => void;
   handleCopy: () => string;
   handleBlockDelete: (lineIndex: number, startCol: number, endCol: number) => void;
@@ -34,6 +36,7 @@ export function useKeyboardHandling({
   hiddenLines,
   selectedBlockRange,
   handleEditorKeyDown,
+  lineWidthRef,
   handlePaste,
   handleCopy,
   handleBlockDelete,
@@ -133,7 +136,7 @@ export function useKeyboardHandling({
         return;
       }
 
-      handleEditorKeyDown(e, hiddenLines);
+      handleEditorKeyDown(e, hiddenLines, lineWidthRef?.current);
     },
     [
       markKeyInput,
