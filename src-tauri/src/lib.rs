@@ -19,9 +19,24 @@ fn get_default_journal_dir() -> Result<PathBuf, String> {
     Ok(home.join("Journal"))
 }
 
+fn get_effective_journal_dir() -> Result<PathBuf, String> {
+    let settings = read_settings()?;
+    if let Some(serde_json::Value::String(dir)) = settings.get("journalDir") {
+        return Ok(PathBuf::from(dir));
+    }
+    get_default_journal_dir()
+}
+
+#[tauri::command]
+fn get_home_dir() -> Result<String, String> {
+    dirs::home_dir()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+        .ok_or("Could not determine home directory".to_string())
+}
+
 #[tauri::command]
 fn get_journal_path() -> Result<String, String> {
-    let path = get_default_journal_dir()?;
+    let path = get_effective_journal_dir()?;
     path.to_str()
         .map(|s| s.to_string())
         .ok_or("Invalid path encoding".to_string())
@@ -77,7 +92,7 @@ fn write_entry(filepath: String, content: String) -> Result<(), String> {
 
 #[tauri::command]
 fn ensure_journal_dir() -> Result<String, String> {
-    let path = get_default_journal_dir()?;
+    let path = get_effective_journal_dir()?;
 
     fs::create_dir_all(&path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::PermissionDenied {
@@ -94,7 +109,7 @@ fn ensure_journal_dir() -> Result<String, String> {
 
 #[tauri::command]
 fn list_entries() -> Result<Vec<String>, String> {
-    let journal_dir = get_default_journal_dir()?;
+    let journal_dir = get_effective_journal_dir()?;
 
     if !journal_dir.exists() {
         return Ok(vec![]);
@@ -206,6 +221,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_home_dir,
             get_journal_path,
             write_entry,
             ensure_journal_dir,

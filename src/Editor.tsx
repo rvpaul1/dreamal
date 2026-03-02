@@ -44,7 +44,10 @@ function Editor() {
     applyMacro,
   } = useEditorState();
 
-  const { saveState, flushSave, journalDir } = usePersistence(document, updateMetadata);
+  const { saveState, flushSave, journalDir, homeDir, changeJournalDir } = usePersistence(document, updateMetadata);
+  const journalDirDisplay = journalDir && homeDir && journalDir.startsWith(homeDir)
+    ? "~" + journalDir.slice(homeDir.length)
+    : journalDir;
 
   const {
     cursorVisible,
@@ -331,6 +334,14 @@ function Editor() {
           onToggleReplace={handleToggleFindReplaceReplace}
         />
       )}
+      <div
+        className="journal-dir-indicator"
+        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+        onClick={changeJournalDir}
+        title={journalDir ?? ""}
+      >
+        {journalDirDisplay ?? ""}
+      </div>
     </div>
   );
 }

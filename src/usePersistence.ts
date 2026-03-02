@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { Document } from "./documentModel";
 import { serializeToMDX, getFilePath, updateModified } from "./documentModel";
 
@@ -16,6 +17,7 @@ export function usePersistence(
   onMetadataUpdate: (metadata: Document["metadata"]) => void
 ) {
   const [journalDir, setJournalDir] = useState<string | null>(null);
+  const [homeDir, setHomeDir] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDocRef = useRef<Document | null>(null);
@@ -29,6 +31,10 @@ export function usePersistence(
   }, []);
 
   useEffect(() => {
+    invoke<string>("get_home_dir")
+      .then((dir) => { if (isMountedRef.current) setHomeDir(dir); })
+      .catch(() => {});
+
     invoke<string>("ensure_journal_dir")
       .then((dir) => {
         if (isMountedRef.current) {
@@ -103,6 +109,23 @@ export function usePersistence(
     }
   }, [saveToFile]);
 
+  const changeJournalDir = useCallback(async () => {
+    const selected = await open({
+      directory: true,
+      defaultPath: journalDir ?? undefined,
+      title: "Choose Journal Folder",
+    });
+    if (!selected) return;
+
+    flushSave();
+
+    await invoke("set_setting", { key: "journalDir", value: selected });
+    const newDir = await invoke<string>("ensure_journal_dir");
+    if (isMountedRef.current) {
+      setJournalDir(newDir);
+    }
+  }, [journalDir, flushSave]);
+
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -136,5 +159,7 @@ export function usePersistence(
     saveState,
     flushSave,
     journalDir,
+    homeDir,
+    changeJournalDir,
   };
 }
