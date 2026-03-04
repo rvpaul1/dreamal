@@ -5,6 +5,7 @@ import {
   parseFromMDX,
   serializeToMDX,
   createDocument,
+  updateModified,
   getFilePath,
   type Document,
 } from "./documentModel";
@@ -164,6 +165,41 @@ describe("parseFromMDX and serializeToMDX roundtrip", () => {
 
     expect(isContentBlank(contentSerialized)).toBe(false);
     expect(isDocumentBlank(parseFromMDX(contentSerialized, "/test.md"))).toBe(false);
+  });
+});
+
+describe("parseFromMDX filepath", () => {
+  it("stores the filepath in metadata when parsed from frontmatter", () => {
+    const content = `---
+id: test-id
+created: 2024-01-15T02:30:45.000Z
+modified: 2024-01-15T02:30:45.000Z
+---
+
+Hello`;
+    const filepath = "/journal/2024/01/2024-01-15-103045.md";
+    const doc = parseFromMDX(content, filepath);
+    expect(doc.metadata.filepath).toBe(filepath);
+  });
+
+  it("stores the filepath in metadata when parsed without frontmatter", () => {
+    const filepath = "/journal/2024/01/2024-01-15-103045.md";
+    const doc = parseFromMDX("Hello", filepath);
+    expect(doc.metadata.filepath).toBe(filepath);
+  });
+
+  it("preserves filepath through updateModified", () => {
+    const content = `---
+id: test-id
+created: 2024-01-15T02:30:45.000Z
+modified: 2024-01-15T02:30:45.000Z
+---
+
+Hello`;
+    const filepath = "/journal/2024/01/2024-01-15-103045.md";
+    const doc = parseFromMDX(content, filepath);
+    const updated = updateModified(doc);
+    expect(updated.metadata.filepath).toBe(filepath);
   });
 });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Document } from "./documentModel";
-import { parseFromMDX, getFilePath, isContentBlank } from "./documentModel";
+import { parseFromMDX, isContentBlank } from "./documentModel";
 
 interface NavigationState {
   entries: string[];
@@ -25,10 +25,8 @@ export function useEntryNavigation(
   const hasCheckedInitialEntry = useRef(false);
 
   useEffect(() => {
-    if (journalDir) {
-      currentFilepathRef.current = getFilePath(journalDir, document.metadata.created);
-    }
-  }, [journalDir, document.metadata.created]);
+    currentFilepathRef.current = document.metadata.filepath ?? null;
+  }, [document.metadata.filepath]);
 
   const refreshEntries = useCallback(async () => {
     try {
@@ -79,36 +77,37 @@ export function useEntryNavigation(
 
   const loadEntry = useCallback(
     async (filepath: string) => {
+      console.log("Load file" + filepath);
       setState((prev) => ({ ...prev, isLoading: true }));
       try {
         const content = await invoke<string>("read_entry", { filepath });
         const doc = parseFromMDX(content, filepath);
         currentFilepathRef.current = filepath;
         updateDocument(doc);
-        setState((prev) => ({
-          ...prev,
-          currentIndex: prev.entries.indexOf(filepath),
-          isLoading: false,
-        }));
       } catch (err) {
         console.error("Failed to load entry:", err);
         setState((prev) => ({ ...prev, isLoading: false }));
       }
     },
-    [updateDocument]
+    [updateDocument, setState]
   );
 
   const navigatePrev = useCallback(async () => {
     await refreshEntries();
     setState((prev) => {
       const targetIndex = prev.currentIndex - 1;
+      console.log("targetIndex: " + targetIndex);
       if (targetIndex >= 0 && targetIndex < prev.entries.length) {
         flushSave();
         loadEntry(prev.entries[targetIndex]);
+        return {
+          ...prev,
+          currentIndex: targetIndex
+        }
       }
       return prev;
     });
-  }, [refreshEntries, loadEntry, flushSave]);
+  }, [refreshEntries, loadEntry, flushSave, setState]);
 
   const navigateNext = useCallback(async () => {
     await refreshEntries();
@@ -120,18 +119,7 @@ export function useEntryNavigation(
       }
       return prev;
     });
-  }, [refreshEntries, loadEntry, flushSave]);
-
-  const setCurrentFilepath = useCallback(
-    (filepath: string) => {
-      currentFilepathRef.current = filepath;
-      setState((prev) => ({
-        ...prev,
-        currentIndex: prev.entries.indexOf(filepath),
-      }));
-    },
-    []
-  );
+  }, [refreshEntries, loadEntry, flushSave, setState]);
 
   return {
     entries: state.entries,
@@ -140,7 +128,6 @@ export function useEntryNavigation(
     navigatePrev,
     navigateNext,
     refreshEntries,
-    setCurrentFilepath,
     hasPrev: state.currentIndex > 0,
     hasNext: state.currentIndex < state.entries.length - 1 && state.currentIndex >= 0,
   };

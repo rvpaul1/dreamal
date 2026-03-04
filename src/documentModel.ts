@@ -4,6 +4,7 @@ export interface DocumentMetadata {
   id: string;
   created: Date;
   modified: Date;
+  filepath?: string;
 }
 
 export interface Document {
@@ -83,6 +84,7 @@ export function parseFromMDX(content: string, filepath: string): Document {
         id: generateId(),
         created,
         modified: created,
+        filepath,
       },
       editor: {
         lines: content.split("\n"),
@@ -96,7 +98,7 @@ export function parseFromMDX(content: string, filepath: string): Document {
   const metadata = parseFrontmatter(frontmatterStr, filepath);
 
   return {
-    metadata,
+    metadata: { ...metadata, filepath },
     editor: {
       lines: body.split("\n"),
       cursor: { line: 0, col: 0 },
