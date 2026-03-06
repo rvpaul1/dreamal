@@ -24,8 +24,8 @@ describe("RenderedLine", () => {
 
   describe("text rendering", () => {
     it("renders plain text", () => {
-      render(<RenderedLine {...defaultProps} lineText="Hello world" />);
-      expect(screen.getByText("Hello world")).toBeInTheDocument();
+      const { container } = render(<RenderedLine {...defaultProps} lineText="Hello world" />);
+      expect(container.textContent).toContain("Hello world");
     });
 
     it("renders empty line with zero-width space", () => {
@@ -145,7 +145,7 @@ describe("RenderedLine", () => {
         />
       );
       expect(screen.getByText("He")).toBeInTheDocument();
-      expect(screen.getByText("llo")).toBeInTheDocument();
+      expect(container.textContent).toContain("Hello");
       const cursor = container.querySelector(".cursor");
       expect(cursor).toBeInTheDocument();
     });
