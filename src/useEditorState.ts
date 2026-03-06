@@ -374,6 +374,25 @@ export function useEditorState() {
     [updateEditorWithHistory]
   );
 
+  const handleCursorNavTo = useCallback(
+    (pos: CursorPosition, isShift: boolean) => {
+      updateEditorNoHistory((s) => {
+        const clampedLine = Math.max(0, Math.min(pos.line, s.lines.length - 1));
+        const clampedCol = Math.max(0, Math.min(pos.col, s.lines[clampedLine].length));
+        const newPos = { line: clampedLine, col: clampedCol };
+        if (isShift) {
+          return {
+            ...s,
+            cursor: newPos,
+            selectionAnchor: s.selectionAnchor ?? s.cursor,
+          };
+        }
+        return { ...s, cursor: newPos, selectionAnchor: null };
+      });
+    },
+    [updateEditorNoHistory]
+  );
+
   const handleClickAt = useCallback(
     (pos: CursorPosition) => {
       updateEditorNoHistory((s) => setCursor(s, pos));
@@ -453,6 +472,7 @@ export function useEditorState() {
     handleKeyUp,
     handleClickAt,
     handleDragTo,
+    handleCursorNavTo,
     handlePaste,
     handleCopy,
     updateDocument,

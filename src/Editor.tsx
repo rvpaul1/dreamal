@@ -37,6 +37,7 @@ function Editor() {
     handleKeyUp: handleEditorKeyUp,
     handleClickAt,
     handleDragTo,
+    handleCursorNavTo,
     handlePaste,
     handleCopy,
     updateDocument,
@@ -53,6 +54,7 @@ function Editor() {
     cursorVisible,
     getInlineBlockEndingBefore,
     getInlineBlockStartingAfter,
+    navigateWrappedLine,
     markClickInput,
     markKeyInput,
   } = useCursorBehavior({
@@ -165,6 +167,8 @@ function Editor() {
     updateDocument,
     onOpenFind: openFind,
     onOpenReplace: openReplace,
+    navigateWrappedLine,
+    handleCursorNavTo,
   });
 
   useEffect(() => {

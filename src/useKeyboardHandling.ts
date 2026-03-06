@@ -26,6 +26,8 @@ interface UseKeyboardHandlingProps {
   updateDocument: (doc: Document) => void;
   onOpenFind?: () => void;
   onOpenReplace?: () => void;
+  navigateWrappedLine: (direction: "up" | "down") => CursorPosition | null;
+  handleCursorNavTo: (pos: CursorPosition, isShift: boolean) => void;
 }
 
 export function useKeyboardHandling({
@@ -50,6 +52,8 @@ export function useKeyboardHandling({
   updateDocument,
   onOpenFind,
   onOpenReplace,
+  navigateWrappedLine,
+  handleCursorNavTo,
 }: UseKeyboardHandlingProps) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -133,6 +137,16 @@ export function useKeyboardHandling({
         return;
       }
 
+      if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.metaKey && !e.altKey) {
+        const direction = e.key === "ArrowUp" ? "up" : "down";
+        const newPos = navigateWrappedLine(direction);
+        if (newPos) {
+          e.preventDefault();
+          handleCursorNavTo(newPos, e.shiftKey);
+          return;
+        }
+      }
+
       handleEditorKeyDown(e, hiddenLines);
     },
     [
@@ -155,6 +169,8 @@ export function useKeyboardHandling({
       updateDocument,
       onOpenFind,
       onOpenReplace,
+      navigateWrappedLine,
+      handleCursorNavTo,
     ]
   );
 

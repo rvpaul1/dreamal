@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { parseLineSegments } from "./jsxBlocks";
 import type { CursorPosition, Document } from "./useEditorState";
+import { getBulletInfo } from "./editorActions";
+import { displayColToRawCol } from "./useMouseSelection";
 
 interface UseCursorBehaviorProps {
   lines: string[];
@@ -140,6 +142,52 @@ export function useCursorBehavior({
     prevCursorRef.current = cursor;
   }, [cursor.line, cursor.col, getInlineBlockAt, updateDocument]);
 
+  const navigateWrappedLine = useCallback(
+    (direction: "up" | "down"): CursorPosition | null => {
+      const lineEl = lineRefs.current.get(cursor.line);
+      if (!lineEl) return null;
+
+      const cursorEl = lineEl.querySelector(".cursor");
+      if (!cursorEl) return null;
+
+      const cursorRect = cursorEl.getBoundingClientRect();
+      const lineRect = lineEl.getBoundingClientRect();
+      const lineHeight = 27;
+
+      const cursorMidY = (cursorRect.top + cursorRect.bottom) / 2;
+      const targetY =
+        direction === "up" ? cursorMidY - lineHeight : cursorMidY + lineHeight;
+
+      if (targetY < lineRect.top || targetY > lineRect.bottom) return null;
+
+      const ownerDoc = lineEl.ownerDocument;
+      const range = ownerDoc.caretRangeFromPoint(cursorRect.left, targetY);
+      if (!range || !lineEl.contains(range.startContainer)) return null;
+
+      const lineTextEl = lineEl.querySelector(".line-text");
+      const walkRoot = lineTextEl || lineEl;
+      let displayCol = 0;
+      const walker = ownerDoc.createTreeWalker(walkRoot, NodeFilter.SHOW_TEXT);
+      let node: Text | null;
+      while ((node = walker.nextNode() as Text | null)) {
+        if (node === range.startContainer) {
+          displayCol += range.startOffset;
+          break;
+        }
+        displayCol += node.textContent?.length ?? 0;
+      }
+
+      const lineText = linesRef.current[cursor.line] ?? "";
+      const bulletInfo = getBulletInfo(lineText);
+      const prefixLen = bulletInfo ? bulletInfo.prefixLength : 0;
+      const displayText = lineText.slice(prefixLen);
+      const rawCol = displayColToRawCol(displayText, displayCol, true) + prefixLen;
+
+      return { line: cursor.line, col: rawCol };
+    },
+    [cursor, lineRefs, linesRef]
+  );
+
   const markClickInput = useCallback(() => {
     lastInputWasClickRef.current = true;
   }, []);
@@ -152,6 +200,7 @@ export function useCursorBehavior({
     cursorVisible,
     getInlineBlockEndingBefore,
     getInlineBlockStartingAfter,
+    navigateWrappedLine,
     markClickInput,
     markKeyInput,
   };
