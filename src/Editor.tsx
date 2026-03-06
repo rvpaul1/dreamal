@@ -55,6 +55,7 @@ function Editor() {
     getInlineBlockEndingBefore,
     getInlineBlockStartingAfter,
     navigateWrappedLine,
+    navigateWrappedLineEdge,
     markClickInput,
     markKeyInput,
   } = useCursorBehavior({
@@ -168,6 +169,7 @@ function Editor() {
     onOpenFind: openFind,
     onOpenReplace: openReplace,
     navigateWrappedLine,
+    navigateWrappedLineEdge,
     handleCursorNavTo,
   });
 

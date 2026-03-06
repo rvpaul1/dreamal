@@ -27,6 +27,7 @@ interface UseKeyboardHandlingProps {
   onOpenFind?: () => void;
   onOpenReplace?: () => void;
   navigateWrappedLine: (direction: "up" | "down") => CursorPosition | null;
+  navigateWrappedLineEdge: (edge: "start" | "end") => CursorPosition | null;
   handleCursorNavTo: (pos: CursorPosition, isShift: boolean) => void;
 }
 
@@ -53,6 +54,7 @@ export function useKeyboardHandling({
   onOpenFind,
   onOpenReplace,
   navigateWrappedLine,
+  navigateWrappedLineEdge,
   handleCursorNavTo,
 }: UseKeyboardHandlingProps) {
   const handleKeyDown = useCallback(
@@ -147,6 +149,16 @@ export function useKeyboardHandling({
         }
       }
 
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.metaKey && !e.altKey && !e.ctrlKey) {
+        const edge = e.key === "ArrowLeft" ? "start" : "end";
+        const newPos = navigateWrappedLineEdge(edge);
+        if (newPos) {
+          e.preventDefault();
+          handleCursorNavTo(newPos, e.shiftKey);
+          return;
+        }
+      }
+
       handleEditorKeyDown(e, hiddenLines);
     },
     [
@@ -170,6 +182,7 @@ export function useKeyboardHandling({
       onOpenFind,
       onOpenReplace,
       navigateWrappedLine,
+      navigateWrappedLineEdge,
       handleCursorNavTo,
     ]
   );
