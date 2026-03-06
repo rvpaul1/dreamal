@@ -40,6 +40,10 @@ import {
   isUrlOrDomain,
   tryFormatUrlBeforeSpace,
   tryFormatUrlBeforeNewline,
+  getVisualRow,
+  getVisualRowCount,
+  moveCursorUpWrapped,
+  moveCursorDownWrapped,
 } from "./editorActions";
 
 function state(
@@ -1736,6 +1740,213 @@ describe("URL detection and formatting", () => {
       const result = tryFormatUrlBeforeNewline(s);
       expect(result).not.toBeNull();
       expect(result!.cursor).toEqual(cursor(1, 7));
+    });
+  });
+});
+
+describe("Wrapped Line Navigation", () => {
+  describe("getVisualRow", () => {
+    it("returns 0 for any column when lineWidth is 0", () => {
+      expect(getVisualRow(0, 0)).toBe(0);
+      expect(getVisualRow(50, 0)).toBe(0);
+    });
+
+    it("returns 0 for columns within the first visual row", () => {
+      expect(getVisualRow(0, 10)).toBe(0);
+      expect(getVisualRow(9, 10)).toBe(0);
+    });
+
+    it("returns 1 for columns at the start of the second visual row", () => {
+      expect(getVisualRow(10, 10)).toBe(1);
+      expect(getVisualRow(19, 10)).toBe(1);
+    });
+
+    it("returns correct row for arbitrary columns", () => {
+      expect(getVisualRow(25, 10)).toBe(2);
+      expect(getVisualRow(30, 10)).toBe(3);
+    });
+  });
+
+  describe("getVisualRowCount", () => {
+    it("returns 1 for empty line", () => {
+      expect(getVisualRowCount(0, 10)).toBe(1);
+    });
+
+    it("returns 1 when line fits within one visual row", () => {
+      expect(getVisualRowCount(10, 10)).toBe(1);
+      expect(getVisualRowCount(5, 10)).toBe(1);
+    });
+
+    it("returns 2 for a line slightly longer than one visual row", () => {
+      expect(getVisualRowCount(11, 10)).toBe(2);
+      expect(getVisualRowCount(20, 10)).toBe(2);
+    });
+
+    it("returns correct count for longer lines", () => {
+      expect(getVisualRowCount(21, 10)).toBe(3);
+      expect(getVisualRowCount(30, 10)).toBe(3);
+    });
+  });
+
+  describe("moveCursorUpWrapped", () => {
+    it("moves to visual row above within the same line", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 15));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("moves to previous line when on first visual row", () => {
+      const s = state(["previous line", "abcdefghij"], cursor(1, 5));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 5));
+    });
+
+    it("moves to the last visual row of the previous line", () => {
+      const s = state(["abcdefghijklmnopqrst", "line2"], cursor(1, 3));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 13));
+    });
+
+    it("stays at document start when on first line first visual row", () => {
+      const s = state(["abcdefghij"], cursor(0, 3));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("preserves visual column when moving up", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 25));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 15));
+    });
+
+    it("clamps to line end when visual column exceeds previous visual row length", () => {
+      const s = state(["abcde", "abcdefghijkl"], cursor(1, 12));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(1, 2));
+    });
+
+    it("clamps to previous line end when visual col exceeds its length", () => {
+      const s = state(["abc", "abcdefghij"], cursor(1, 8));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 3));
+    });
+
+    it("handles shift for selection extension within same line", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 15));
+      const result = moveCursorUpWrapped(s, 10, true);
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 15));
+    });
+
+    it("preserves existing selection anchor on shift", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 15), cursor(0, 19));
+      const result = moveCursorUpWrapped(s, 10, true);
+      expect(result.cursor).toEqual(cursor(0, 5));
+      expect(result.selectionAnchor).toEqual(cursor(0, 19));
+    });
+
+    it("clears selection on non-shift move", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 15), cursor(0, 19));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("cursor at beginning of second visual row moves to beginning of first visual row", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 10));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 0));
+    });
+
+    it("cursor at end of second visual row moves to end of first visual row", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 19));
+      const result = moveCursorUpWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 9));
+    });
+
+    it("falls back to moveCursorUp behavior when lineWidth is 0", () => {
+      const s = state(["line one", "line two"], cursor(1, 4));
+      const wrapped = moveCursorUpWrapped(s, 0, false);
+      const regular = moveCursorUp(s, false);
+      expect(wrapped.cursor).toEqual(regular.cursor);
+    });
+  });
+
+  describe("moveCursorDownWrapped", () => {
+    it("moves to visual row below within the same line", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 5));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 15));
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("moves to next line when on last visual row", () => {
+      const s = state(["abcdefghij", "next line"], cursor(0, 5));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(1, 5));
+    });
+
+    it("stays at document end when on last line last visual row", () => {
+      const s = state(["abcdefghij"], cursor(0, 8));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 10));
+    });
+
+    it("preserves visual column when moving down", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 5));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 15));
+    });
+
+    it("clamps to line end when visual column exceeds next visual row length", () => {
+      const s = state(["abcdefghijklmnop"], cursor(0, 8));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 16));
+    });
+
+    it("clamps to next line end when visual col exceeds its length", () => {
+      const s = state(["abcdefghij", "abc"], cursor(0, 8));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(1, 3));
+    });
+
+    it("handles shift for selection extension within same line", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 5));
+      const result = moveCursorDownWrapped(s, 10, true);
+      expect(result.cursor).toEqual(cursor(0, 15));
+      expect(result.selectionAnchor).toEqual(cursor(0, 5));
+    });
+
+    it("preserves existing selection anchor on shift", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 5), cursor(0, 0));
+      const result = moveCursorDownWrapped(s, 10, true);
+      expect(result.cursor).toEqual(cursor(0, 15));
+      expect(result.selectionAnchor).toEqual(cursor(0, 0));
+    });
+
+    it("clears selection on non-shift move", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 5), cursor(0, 0));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.selectionAnchor).toBeNull();
+    });
+
+    it("cursor at beginning of first visual row moves to beginning of second visual row", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 0));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 10));
+    });
+
+    it("cursor at end of first visual row moves to end of second visual row", () => {
+      const s = state(["abcdefghijklmnopqrst"], cursor(0, 9));
+      const result = moveCursorDownWrapped(s, 10, false);
+      expect(result.cursor).toEqual(cursor(0, 19));
+    });
+
+    it("falls back to moveCursorDown behavior when lineWidth is 0", () => {
+      const s = state(["line one", "line two"], cursor(0, 4));
+      const wrapped = moveCursorDownWrapped(s, 0, false);
+      const regular = moveCursorDown(s, false);
+      expect(wrapped.cursor).toEqual(regular.cursor);
     });
   });
 });

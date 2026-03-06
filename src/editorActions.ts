@@ -1020,6 +1020,85 @@ export function tryFormatUrlBeforeNewline(state: EditorState): EditorState | nul
   };
 }
 
+export function getVisualRow(col: number, lineWidth: number): number {
+  return lineWidth > 0 ? Math.floor(col / lineWidth) : 0;
+}
+
+export function getVisualRowCount(lineLength: number, lineWidth: number): number {
+  if (lineWidth <= 0) return 1;
+  return Math.max(1, Math.ceil(lineLength / lineWidth));
+}
+
+export function moveCursorUpWrapped(
+  state: EditorState,
+  lineWidth: number,
+  isShift: boolean
+): EditorState {
+  if (lineWidth <= 0) return moveCursorUp(state, isShift);
+
+  const { line, col } = state.cursor;
+  const visualRow = getVisualRow(col, lineWidth);
+  const visualCol = col % lineWidth;
+
+  let newPos: CursorPosition;
+
+  if (visualRow > 0) {
+    const newCol = Math.min((visualRow - 1) * lineWidth + visualCol, state.lines[line].length);
+    newPos = { line, col: newCol };
+  } else if (line > 0) {
+    const prevLineLen = state.lines[line - 1].length;
+    const prevVisualRows = getVisualRowCount(prevLineLen, lineWidth);
+    const newCol = Math.min((prevVisualRows - 1) * lineWidth + visualCol, prevLineLen);
+    newPos = { line: line - 1, col: newCol };
+  } else {
+    newPos = { line: 0, col: 0 };
+  }
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+  return { ...state, cursor: newPos, selectionAnchor: null };
+}
+
+export function moveCursorDownWrapped(
+  state: EditorState,
+  lineWidth: number,
+  isShift: boolean
+): EditorState {
+  if (lineWidth <= 0) return moveCursorDown(state, isShift);
+
+  const { line, col } = state.cursor;
+  const lineLen = state.lines[line].length;
+  const visualRow = getVisualRow(col, lineWidth);
+  const visualCol = col % lineWidth;
+  const totalVisualRows = getVisualRowCount(lineLen, lineWidth);
+
+  let newPos: CursorPosition;
+
+  if (visualRow < totalVisualRows - 1) {
+    const newCol = Math.min((visualRow + 1) * lineWidth + visualCol, lineLen);
+    newPos = { line, col: newCol };
+  } else if (line < state.lines.length - 1) {
+    const newCol = Math.min(visualCol, state.lines[line + 1].length);
+    newPos = { line: line + 1, col: newCol };
+  } else {
+    newPos = { line, col: lineLen };
+  }
+
+  if (isShift) {
+    return {
+      ...state,
+      cursor: newPos,
+      selectionAnchor: state.selectionAnchor ?? state.cursor,
+    };
+  }
+  return { ...state, cursor: newPos, selectionAnchor: null };
+}
+
 export function swapHeadingSectionDown(
   state: EditorState,
   hiddenLines: Set<number>

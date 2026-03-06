@@ -292,11 +292,21 @@ function TextSegmentRenderer({
 
   if (!selectionInfo) {
     if (cursorInSegment) {
+      const nextChar = content.slice(relativeCursorCol, relativeCursorCol + 1);
+      const afterNextChar = content.slice(relativeCursorCol + 1);
+      const anchorToNextChar = nextChar !== "" && nextChar !== " ";
       return (
         <>
           <span>{content.slice(0, relativeCursorCol)}</span>
-          <Cursor visible={cursorVisible} />
-          <span>{content.slice(relativeCursorCol)}</span>
+          {anchorToNextChar ? (
+            <span style={{ whiteSpace: "nowrap" }}>
+              <Cursor visible={cursorVisible} />
+              {nextChar}
+            </span>
+          ) : (
+            <Cursor visible={cursorVisible} />
+          )}
+          <span>{anchorToNextChar ? afterNextChar : content.slice(relativeCursorCol)}</span>
         </>
       );
     }
