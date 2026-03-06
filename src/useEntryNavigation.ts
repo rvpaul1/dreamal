@@ -10,7 +10,7 @@ interface NavigationState {
 }
 
 export function useEntryNavigation(
-  document: Document,
+  initialFilePath: string | null,
   journalDir: string | null,
   updateDocument: (doc: Document) => void,
   flushSave: () => void
@@ -21,18 +21,19 @@ export function useEntryNavigation(
     isLoading: false,
   });
 
-  const currentFilepathRef = useRef<string | null>(null);
+  const initialFilePathRef = useRef<string | null>(initialFilePath);
   const hasCheckedInitialEntry = useRef(false);
+  const navigatingRef = useRef(false);
 
   useEffect(() => {
-    currentFilepathRef.current = document.metadata.filepath ?? null;
-  }, [document.metadata.filepath]);
+    initialFilePathRef.current = initialFilePath;
+  }, [initialFilePath]);
 
   const refreshEntries = useCallback(async () => {
     try {
       const entries = await invoke<string[]>("list_entries");
       setState((prev) => {
-        const currentPath = currentFilepathRef.current;
+        const currentPath = initialFilePathRef.current;
         const newIndex = currentPath ? entries.indexOf(currentPath) : -1;
         return {
           ...prev,
@@ -77,49 +78,50 @@ export function useEntryNavigation(
 
   const loadEntry = useCallback(
     async (filepath: string) => {
-      console.log("Load file" + filepath);
       setState((prev) => ({ ...prev, isLoading: true }));
       try {
         const content = await invoke<string>("read_entry", { filepath });
         const doc = parseFromMDX(content, filepath);
-        currentFilepathRef.current = filepath;
+        initialFilePathRef.current = filepath;
         updateDocument(doc);
       } catch (err) {
         console.error("Failed to load entry:", err);
+      } finally {
         setState((prev) => ({ ...prev, isLoading: false }));
       }
     },
-    [updateDocument, setState]
+    [updateDocument]
   );
 
-  const navigatePrev = useCallback(async () => {
-    await refreshEntries();
-    setState((prev) => {
-      const targetIndex = prev.currentIndex - 1;
-      console.log("targetIndex: " + targetIndex);
-      if (targetIndex >= 0 && targetIndex < prev.entries.length) {
-        flushSave();
-        loadEntry(prev.entries[targetIndex]);
-        return {
-          ...prev,
-          currentIndex: targetIndex
-        }
-      }
-      return prev;
-    });
-  }, [refreshEntries, loadEntry, flushSave, setState]);
+  const navigate = useCallback(
+    async (delta: number) => {
+      if (navigatingRef.current) return;
+      navigatingRef.current = true;
+      try {
+        const entries = await invoke<string[]>("list_entries");
+        const currentPath = initialFilePathRef.current;
+        const currentIndex = currentPath ? entries.indexOf(currentPath) : -1;
+        const resolvedIndex = currentIndex >= 0 ? currentIndex : entries.length;
+        const targetIndex = resolvedIndex + delta;
 
-  const navigateNext = useCallback(async () => {
-    await refreshEntries();
-    setState((prev) => {
-      const targetIndex = prev.currentIndex + 1;
-      if (targetIndex >= 0 && targetIndex < prev.entries.length) {
-        flushSave();
-        loadEntry(prev.entries[targetIndex]);
+        if (targetIndex >= 0 && targetIndex < entries.length) {
+          flushSave();
+          setState((prev) => ({ ...prev, entries, currentIndex: targetIndex }));
+          await loadEntry(entries[targetIndex]);
+        } else {
+          setState((prev) => ({ ...prev, entries, currentIndex: resolvedIndex }));
+        }
+      } catch (err) {
+        console.error("Failed to navigate:", err);
+      } finally {
+        navigatingRef.current = false;
       }
-      return prev;
-    });
-  }, [refreshEntries, loadEntry, flushSave, setState]);
+    },
+    [loadEntry, flushSave]
+  );
+
+  const navigatePrev = useCallback(() => navigate(-1), [navigate]);
+  const navigateNext = useCallback(() => navigate(1), [navigate]);
 
   return {
     entries: state.entries,

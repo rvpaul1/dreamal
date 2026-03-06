@@ -62,7 +62,7 @@ export function usePersistence(
 
       try {
         const mdx = serializeToMDX(updatedDoc);
-        const filepath = getFilePath(journalDir, updatedDoc.metadata.created);
+        const filepath = updatedDoc.metadata.filepath ?? getFilePath(journalDir, updatedDoc.metadata.created);
 
         await invoke("write_entry", { filepath, content: mdx });
 

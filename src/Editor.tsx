@@ -78,7 +78,7 @@ function Editor() {
   });
 
   const { navigatePrev, navigateNext, hasPrev, hasNext } = useEntryNavigation(
-    document,
+    document.metadata.filepath ?? null,
     journalDir,
     updateDocument,
     flushSave
